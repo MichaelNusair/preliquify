@@ -29,9 +29,9 @@
   },
   "peerDependencies": {
     "preact": "^10.22.0",
-    "@preliquify/core": "workspace:*"
+    "@preliquify/core": "^0.1.3"
   },
   "dependencies": {
-    "@preliquify/core": "workspace:*"
+    "@preliquify/core": "^0.1.3"
   }
 }

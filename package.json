@@ -21,7 +21,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "lint:fix": "eslint --fix .",
-    "publish:packages": "pnpm -r --filter '@preliquify/*' publish",
+    "publish:packages": "pnpm -r --filter '@preliquify/core' publish && pnpm -r --filter '@preliquify/preact' publish && pnpm -r --filter '@preliquify/compiler' publish && pnpm -r --filter '@preliquify/cli' publish",
     "publish": "pnpm build && pnpm publish:packages"
   },
   "devDependencies": {

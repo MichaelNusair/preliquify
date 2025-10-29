@@ -24,6 +24,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@preliquify/compiler": "workspace:*"
+    "@preliquify/compiler": "^0.1.3"
   }
 }
