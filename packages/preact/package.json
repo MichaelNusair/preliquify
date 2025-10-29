@@ -4,9 +4,21 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
-  "scripts": { "build": "tsc -p tsconfig.json" },
-  "peerDependencies": { "preact": "^10.22.0", "@preliquify/core": "workspace:*" },
-  "dependencies": { "@preliquify/core": "workspace:*" }
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "publish": "tsc -p tsconfig.json && npm publish"
+  },
+  "peerDependencies": {
+    "preact": "^10.22.0",
+    "@preliquify/core": "workspace:*"
+  },
+  "dependencies": {
+    "@preliquify/core": "workspace:*"
+  }
 }
-

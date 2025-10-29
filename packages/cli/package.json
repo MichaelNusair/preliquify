@@ -1,12 +1,16 @@
 {
   "name": "@preliquify/cli",
   "version": "0.1.0",
-  "bin": { "preliquify": "dist/index.js" },
+  "bin": {
+    "preliquify": "dist/index.js"
+  },
   "type": "module",
   "main": "dist/index.js",
-  "scripts": { "build": "tsc -p tsconfig.json" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "publish": "tsc -p tsconfig.json && npm publish"
+  },
   "dependencies": {
     "@preliquify/compiler": "workspace:*"
   }
 }
-

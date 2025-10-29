@@ -11,10 +11,10 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "publish": "tsc -p tsconfig.json && npm publish"
   },
   "peerDependencies": {
     "preact": "^10.22.0"
   }
 }
-
