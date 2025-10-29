@@ -17,31 +17,36 @@ export async function build(opts: BuildOptions) {
   let needsRuntime = false;
 
   for (const file of entries) {
-    const code = await fs.readFile(file, "utf8");
-    if (needsClientRuntime(code)) needsRuntime = true;
+    try {
+      const code = await fs.readFile(file, "utf8");
+      if (needsClientRuntime(code)) needsRuntime = true;
 
-    // Bundle this TSX to ESM so Node can import it for SSR-to-Liquid
-    const tmpOut = file + ".mjs";
-    await esbuild({
-      entryPoints: [file],
-      bundle: true,
-      format: "esm",
-      platform: "node",
-      outfile: tmpOut,
-      jsx: "automatic",
-      jsxImportSource: "preact",
-      external: ["preact", "@preliquify/core", "@preliquify/preact"],
-    });
+      // Bundle this TSX to ESM so Node can import it for SSR-to-Liquid
+      const tmpOut = file + ".mjs";
+      await esbuild({
+        entryPoints: [file],
+        bundle: true,
+        format: "esm",
+        platform: "node",
+        outfile: tmpOut,
+        jsx: "automatic",
+        jsxImportSource: "preact",
+        external: ["preact", "@preliquify/core", "@preliquify/preact"],
+      });
 
-    const mod = await import(pathToFileURL(tmpOut).href);
-    const liquid = await renderComponentToLiquid(mod);
+      const mod = await import(pathToFileURL(tmpOut).href);
+      const liquid = await renderComponentToLiquid(mod, file);
 
-    const outPath = join(
-      outLiquidDir,
-      basename(file).replace(/\.tsx$/, ".liquid")
-    );
-    await fs.writeFile(outPath, liquid, "utf8");
-    await fs.rm(tmpOut);
+      const outPath = join(
+        outLiquidDir,
+        basename(file).replace(/\.tsx$/, ".liquid")
+      );
+      await fs.writeFile(outPath, liquid, "utf8");
+      await fs.rm(tmpOut);
+    } catch (error: any) {
+      const errorMessage = error.message || String(error);
+      throw new Error(`Error processing ${file}: ${errorMessage}`);
+    }
   }
 
   // Ship a tiny client runtime if needed
