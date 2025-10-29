@@ -8,7 +8,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "publish": "tsc -p tsconfig.json && npm publish"
+    "publish": "tsc -p tsconfig.json && npm version patch && npm version patch && npm publish"
   },
   "dependencies": {
     "@preliquify/compiler": "workspace:*"
