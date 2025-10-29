@@ -1,11 +1,11 @@
-import fg from 'fast-glob';
-import { promises as fs } from 'node:fs';
-import { join, dirname, basename } from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { build as esbuild } from 'esbuild';
-import { renderComponentToLiquid } from './renderToLiquid';
-import { needsClientRuntime } from './detectIslands';
-import type { BuildOptions } from './types';
+import fg from "fast-glob";
+import { promises as fs } from "node:fs";
+import { join, dirname, basename } from "node:path";
+import { pathToFileURL } from "node:url";
+import { build as esbuild } from "esbuild";
+import { renderComponentToLiquid } from "./renderToLiquid.js";
+import { needsClientRuntime } from "./detectIslands.js";
+import type { BuildOptions } from "./types.js";
 
 export async function build(opts: BuildOptions) {
   const { srcDir, outLiquidDir, outClientDir, watch } = opts;
@@ -17,7 +17,7 @@ export async function build(opts: BuildOptions) {
   let needsRuntime = false;
 
   for (const file of entries) {
-    const code = await fs.readFile(file, 'utf8');
+    const code = await fs.readFile(file, "utf8");
     if (needsClientRuntime(code)) needsRuntime = true;
 
     // Bundle this TSX to ESM so Node can import it for SSR-to-Liquid
@@ -30,14 +30,17 @@ export async function build(opts: BuildOptions) {
       outfile: tmpOut,
       jsx: "automatic",
       jsxImportSource: "preact",
-      external: ["preact", "@preliquify/core", "@preliquify/preact"]
+      external: ["preact", "@preliquify/core", "@preliquify/preact"],
     });
 
     const mod = await import(pathToFileURL(tmpOut).href);
     const liquid = await renderComponentToLiquid(mod);
 
-    const outPath = join(outLiquidDir, basename(file).replace(/\.tsx$/, ".liquid"));
-    await fs.writeFile(outPath, liquid, 'utf8');
+    const outPath = join(
+      outLiquidDir,
+      basename(file).replace(/\.tsx$/, ".liquid")
+    );
+    await fs.writeFile(outPath, liquid, "utf8");
     await fs.rm(tmpOut);
   }
 
@@ -67,11 +70,16 @@ export async function build(opts: BuildOptions) {
   else mount();
 })();
 `;
-    await fs.writeFile(join(outClientDir, "preliquify.runtime.js"), runtimeJs, "utf8");
+    await fs.writeFile(
+      join(outClientDir, "preliquify.runtime.js"),
+      runtimeJs,
+      "utf8"
+    );
   }
 
   if (watch) {
-    console.log("[preliquify] watch mode not implemented in boilerplate — add chokidar here.");
+    console.log(
+      "[preliquify] watch mode not implemented in boilerplate — add chokidar here."
+    );
   }
 }
-
