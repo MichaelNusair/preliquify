@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "lint:fix": "eslint --fix .",
-    "publish": "pnpm -r --filter '@preliquify/*' run publish"
+    "publish:packages": "pnpm -r --filter '@preliquify/*' publish",
+    "publish": "pnpm build && pnpm publish:packages"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
