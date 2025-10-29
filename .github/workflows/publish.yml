@@ -61,7 +61,7 @@ jobs:
           git remote set-url origin https://github.com/${{ github.repository }}.git
 
       - name: Publish packages
-        run: pnpm publish
+        run: pnpm run publish-all-packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
