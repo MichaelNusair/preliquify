@@ -1,6 +1,5 @@
 {
   "name": "preliquify-example",
-  "private": true,
   "type": "module",
   "scripts": {
     "build": "preliquify build"
