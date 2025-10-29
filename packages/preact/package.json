@@ -25,6 +25,9 @@
     "build": "tsc -p tsconfig.json",
     "prepublishOnly": "pnpm build"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "preact": "^10.22.0",
     "@preliquify/core": "workspace:*"

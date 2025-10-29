@@ -25,6 +25,9 @@
     "build": "tsc -p tsconfig.json",
     "prepublishOnly": "pnpm build"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "esbuild": "^0.24.0",
     "fast-glob": "^3.3.2",
