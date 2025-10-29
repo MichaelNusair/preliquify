@@ -2,11 +2,17 @@
   "name": "preliquify",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["packages/*", "examples/*"],
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
   "scripts": {
     "build": "pnpm -r --filter @preliquify/* run build && pnpm -r --filter @preliquify/* run build",
     "dev": "pnpm --filter preliquify run dev",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "lint:fix": "eslint --fix .",
+    "publish": "pnpm -r --filter @preliquify/* run publish"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
@@ -15,4 +21,3 @@
     "prettier": "^3.3.3"
   }
 }
-
