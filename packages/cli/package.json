@@ -23,7 +23,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@preliquify/compiler": "^0.1.9"
+    "@preliquify/compiler": "workspace:*"
   },
   "peerDependencies": {}
 }

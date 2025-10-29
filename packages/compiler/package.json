@@ -31,9 +31,9 @@
     "fast-glob": "^3.3.2",
     "preact": "^10.22.0",
     "preact-render-to-string": "^6.5.11",
-    "@preliquify/core": "^0.1.9"
+    "@preliquify/core": "workspace:*"
   },
   "peerDependencies": {
-    "@preliquify/preact": "^0.1.9"
+    "@preliquify/preact": "workspace:*"
   }
 }
