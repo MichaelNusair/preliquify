@@ -21,6 +21,18 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
+  examples/shopify-theme:
+    dependencies:
+      '@preliquify/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
+      '@preliquify/preact':
+        specifier: workspace:*
+        version: link:../../packages/preact
+      preact:
+        specifier: ^10.22.0
+        version: 10.27.2
+
   packages/cli:
     dependencies:
       '@preliquify/compiler':
@@ -29,6 +41,9 @@ importers:
 
   packages/compiler:
     dependencies:
+      '@preliquify/core':
+        specifier: workspace:*
+        version: link:../core
       '@preliquify/preact':
         specifier: workspace:*
         version: link:../preact

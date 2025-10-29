@@ -1,0 +1,13 @@
+{
+  "name": "preliquify-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "preliquify build"
+  },
+  "dependencies": {
+    "@preliquify/preact": "workspace:*",
+    "preact": "^10.22.0",
+    "@preliquify/cli": "workspace:*"
+  }
+}

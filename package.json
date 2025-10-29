@@ -7,12 +7,12 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "pnpm -r --filter @preliquify/* run build && pnpm -r --filter @preliquify/* run build",
-    "dev": "pnpm --filter preliquify run dev",
+    "build": "pnpm -r --filter '@preliquify/*' run build",
+    "dev": "pnpm --filter @preliquify/cli run dev",
     "lint": "eslint .",
     "format": "prettier --write .",
     "lint:fix": "eslint --fix .",
-    "publish": "pnpm -r --filter @preliquify/* run publish"
+    "publish": "pnpm -r --filter '@preliquify/*' run publish"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
