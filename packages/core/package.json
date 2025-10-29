@@ -21,8 +21,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "prepublishOnly": "pnpm version minor --no-git-tag-version && pnpm build"
+    "build": "tsc -p tsconfig.json"
   },
   "publishConfig": {
     "access": "public"
