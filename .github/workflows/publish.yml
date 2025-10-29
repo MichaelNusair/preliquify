@@ -54,7 +54,9 @@ jobs:
 
       - name: Configure git remote for push
         run: |
-          git remote set-url origin https://${{ secrets.PUSH_GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git config --global credential.helper store
+          echo "https://${{ secrets.PUSH_GITHUB_TOKEN }}@github.com" > ~/.git-credentials
+          git remote set-url origin https://github.com/${{ github.repository }}.git
 
       - name: Publish packages
         run: pnpm publish
