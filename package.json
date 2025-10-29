@@ -1,5 +1,16 @@
 {
   "name": "preliquify",
+  "private": false,
+  "license": "MIT",
+  "author": "Preliquify",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/preliquify/preliquify"
+  },
+  "homepage": "https://preliquify.com",
+  "bugs": {
+    "url": "https://github.com/preliquify/preliquify/issues"
+  },
   "version": "0.1.1",
   "workspaces": [
     "packages/*",
