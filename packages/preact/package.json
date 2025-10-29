@@ -10,7 +10,7 @@
   "bugs": {
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
-  "version": "0.1.8",
+  "version": "0.1.9",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -28,9 +28,9 @@
   },
   "peerDependencies": {
     "preact": "^10.22.0",
-    "@preliquify/core": "workspace:*"
+    "@preliquify/core": "^0.1.9"
   },
   "dependencies": {
-    "@preliquify/core": "workspace:*"
+    "@preliquify/core": "^0.1.9"
   }
 }
