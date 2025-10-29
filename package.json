@@ -1,10 +1,10 @@
 {
-  "name": "preliquify-monorepo",
+  "name": "preliquify",
   "private": true,
   "version": "0.1.0",
   "workspaces": ["packages/*", "examples/*"],
   "scripts": {
-    "build": "pnpm -r --filter @preliquid/* run build && pnpm -r --filter @preliquify/* run build",
+    "build": "pnpm -r --filter @preliquify/* run build && pnpm -r --filter @preliquify/* run build",
     "dev": "pnpm --filter preliquify run dev",
     "lint": "eslint ."
   },

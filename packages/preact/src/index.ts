@@ -1,2 +1,2 @@
-export * from '@preliquid/core';
+export * from '@preliquify/core';
 

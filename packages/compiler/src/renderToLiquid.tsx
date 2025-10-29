@@ -1,6 +1,6 @@
 import { h } from 'preact';
 import renderToString from 'preact-render-to-string';
-import { TargetProvider } from '@preliquid/core';
+import { TargetProvider } from '@preliquify/core';
 
 export async function renderComponentToLiquid(mod: any): Promise<string> {
   const Comp = mod.default || mod.Component || null;

@@ -30,7 +30,7 @@ export async function build(opts: BuildOptions) {
       outfile: tmpOut,
       jsx: "automatic",
       jsxImportSource: "preact",
-      external: ["preact", "@preliquid/core", "@preliquid/preact"]
+      external: ["preact", "@preliquify/core", "@preliquify/preact"]
     });
 
     const mod = await import(pathToFileURL(tmpOut).href);
