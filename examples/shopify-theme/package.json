@@ -1,0 +1,14 @@
+{
+  "name": "preliquify-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "preliquify build"
+  },
+  "dependencies": {
+    "@preliquid/preact": "0.1.0",
+    "preact": "^10.22.0",
+    "preliquify": "0.1.0"
+  }
+}
+
