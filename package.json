@@ -5,11 +5,10 @@
   "author": "Preliquify",
   "repository": {
     "type": "git",
-    "url": "https://github.com/preliquify/preliquify"
+    "url": "https://github.com/MichaelNusair/preliquify"
   },
-  "homepage": "https://preliquify.com",
   "bugs": {
-    "url": "https://github.com/preliquify/preliquify/issues"
+    "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
   "version": "0.1.1",
   "workspaces": [
