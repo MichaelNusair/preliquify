@@ -38,6 +38,9 @@ importers:
       '@preliquify/compiler':
         specifier: workspace:*
         version: link:../compiler
+      esbuild:
+        specifier: ^0.24.0
+        version: 0.24.2
 
   packages/compiler:
     dependencies:

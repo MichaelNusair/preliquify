@@ -23,7 +23,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@preliquify/compiler": "workspace:*"
+    "@preliquify/compiler": "workspace:*",
+    "esbuild": "^0.24.0"
   },
   "peerDependencies": {}
 }
