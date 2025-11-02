@@ -91,6 +91,9 @@ export async function build(opts: BuildOptions) {
         if (needsClientRuntime(code)) needsRuntime = true;
 
         // Bundle this TSX to ESM so Node can import it for SSR-to-Liquid
+        // We need to bundle preact since it won't be available in the temp directory
+        // @preliquify/core and @preliquify/preact can stay external as they're available
+        // from the compiler's own node_modules when we import renderToLiquid
         await esbuild({
           entryPoints: [file],
           bundle: true,
@@ -99,7 +102,8 @@ export async function build(opts: BuildOptions) {
           outfile: tmpOut,
           jsx: "automatic",
           jsxImportSource: "preact",
-          external: ["preact", "@preliquify/core", "@preliquify/preact"],
+          external: ["@preliquify/core", "@preliquify/preact"],
+          packages: "bundle", // Bundle preact and other dependencies
           banner: {
             js: createBrowserPolyfills(),
           },
