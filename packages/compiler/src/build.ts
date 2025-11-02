@@ -1,13 +1,14 @@
 import fg from "fast-glob";
 import { promises as fs } from "node:fs";
-import { join, dirname, basename } from "node:path";
-import { pathToFileURL } from "node:url";
+import { join, dirname, basename, resolve } from "node:path";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { build as esbuild } from "esbuild";
 import { renderComponentToLiquid } from "./renderToLiquid.js";
 import { needsClientRuntime } from "./detectIslands.js";
 import type { BuildOptions } from "./types.js";
+import { createRequire } from "node:module";
 
 function createBrowserPolyfills() {
   return `
@@ -91,8 +92,9 @@ export async function build(opts: BuildOptions) {
         if (needsClientRuntime(code)) needsRuntime = true;
 
         // Bundle this TSX to ESM so Node can import it for SSR-to-Liquid
-        // We bundle all dependencies since they won't be available in the temp directory
-        // when Node tries to resolve imports from the bundled file
+        // Keep preact external so it uses the same instance as renderToLiquid
+        // (needed for hooks to work correctly)
+
         await esbuild({
           entryPoints: [file],
           bundle: true,
@@ -101,11 +103,55 @@ export async function build(opts: BuildOptions) {
           outfile: tmpOut,
           jsx: "automatic",
           jsxImportSource: "preact",
-          packages: "bundle", // Bundle all dependencies including preact
+          external: ["preact", "preact/hooks", "preact-render-to-string"],
           banner: {
             js: createBrowserPolyfills(),
           },
         });
+
+        // Create a require function from the compiler's context to resolve preact
+        const compilerRequire = createRequire(import.meta.url);
+        let preactPath: string | undefined;
+        try {
+          preactPath = compilerRequire.resolve("preact");
+        } catch (e) {
+          // Fallback: try to find preact in the project's node_modules
+          const projectRoot = dirname(file);
+          let current = projectRoot;
+          while (current !== dirname(current)) {
+            const nodeModules = join(current, "node_modules");
+            try {
+              await fs.access(nodeModules);
+              const testPreact = join(nodeModules, "preact");
+              await fs.access(testPreact);
+              preactPath = testPreact;
+              break;
+            } catch {
+              current = dirname(current);
+            }
+          }
+        }
+
+        if (!preactPath) {
+          throw new Error(
+            "Could not find preact package. Make sure preact is installed."
+          );
+        }
+
+        // Create node_modules in temp directory with symlinks to preact
+        // This allows Node to resolve preact when importing the bundled file
+        const tmpNodeModules = join(tmpDir, "node_modules");
+        await fs.mkdir(tmpNodeModules, { recursive: true });
+        const tmpPreact = join(tmpNodeModules, "preact");
+
+        try {
+          // Create symlink to preact
+          await fs.symlink(preactPath, tmpPreact, "dir");
+        } catch (e: any) {
+          // If symlink fails (e.g., Windows without admin rights),
+          // Node should still resolve from parent directories
+          // We'll rely on resolveDir in esbuild and Node's module resolution
+        }
 
         // Create a safe import context with polyfills
         const polyfillCode = createBrowserPolyfills();
