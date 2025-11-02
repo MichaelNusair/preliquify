@@ -16,6 +16,136 @@ import {
 } from "./errors.js";
 import chokidar from "chokidar";
 
+/**
+ * Find the project root by locating node_modules directory
+ */
+async function findProjectRoot(startPath: string): Promise<string | null> {
+  let current = resolve(startPath);
+  const root = dirname(current);
+
+  while (current !== root) {
+    const nodeModules = join(current, "node_modules");
+    try {
+      await fs.access(nodeModules);
+      return current;
+    } catch {
+      current = dirname(current);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Find and symlink all external dependencies needed for module resolution
+ * in the temporary directory
+ */
+async function setupTempNodeModules(
+  projectRoot: string,
+  tmpDir: string,
+  externalPackages: string[]
+): Promise<void> {
+  const projectNodeModules = join(projectRoot, "node_modules");
+  const tmpNodeModules = join(tmpDir, "node_modules");
+
+  await fs.mkdir(tmpNodeModules, { recursive: true });
+
+  // Create a require function from the project root to resolve packages
+  let projectRequire: NodeRequire;
+  try {
+    projectRequire = createRequire(join(projectRoot, "package.json"));
+  } catch {
+    // Fallback: use a file in the project root
+    projectRequire = createRequire(join(projectRoot, "package.json"));
+  }
+
+  // Track unique base packages (e.g., "preact" from "preact/hooks")
+  const basePackages = new Set<string>();
+  for (const pkg of externalPackages) {
+    basePackages.add(pkg.split("/")[0]);
+  }
+
+  for (const basePkg of basePackages) {
+    try {
+      // Try to resolve the package's main entry point
+      const resolvedPath = projectRequire.resolve(basePkg);
+
+      // Find the package root directory
+      // The resolved path might be a file inside the package
+      let current = dirname(resolvedPath);
+      let actualPkgDir: string | null = null;
+
+      // Walk up the directory tree to find the package root
+      // The package root should have a package.json with name matching basePkg
+      while (current !== dirname(current)) {
+        try {
+          const pkgJsonPath = join(current, "package.json");
+          await fs.access(pkgJsonPath);
+          const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf8");
+          const pkgJson = JSON.parse(pkgJsonContent);
+
+          if (pkgJson.name === basePkg) {
+            actualPkgDir = current;
+            break;
+          }
+        } catch {
+          // Continue searching
+        }
+
+        // Check if we're at a node_modules boundary
+        if (
+          basename(current) === basePkg &&
+          basename(dirname(current)) === "node_modules"
+        ) {
+          actualPkgDir = current;
+          break;
+        }
+
+        current = dirname(current);
+      }
+
+      if (!actualPkgDir) {
+        // Fallback: if we can't find package.json, assume the directory
+        // containing the resolved file is the package root
+        actualPkgDir = dirname(resolvedPath);
+      }
+
+      const tmpPkgPath = join(tmpNodeModules, basePkg);
+
+      try {
+        // Remove existing symlink if it exists
+        try {
+          const stat = await fs.lstat(tmpPkgPath);
+          if (stat.isSymbolicLink()) {
+            await fs.unlink(tmpPkgPath);
+          }
+        } catch {
+          // Ignore if it doesn't exist
+        }
+
+        // Create symlink to the actual package directory
+        // Use absolute path for the symlink target
+        const absolutePkgDir = resolve(actualPkgDir);
+        await fs.symlink(absolutePkgDir, tmpPkgPath, "dir");
+      } catch (e: any) {
+        // If symlink fails, try on Windows with junction
+        if (process.platform === "win32") {
+          try {
+            const absolutePkgDir = resolve(actualPkgDir);
+            await fs.symlink(absolutePkgDir, tmpPkgPath, "junction");
+          } catch {
+            // If all else fails, we'll rely on NODE_PATH fallback
+            // This is okay - NODE_PATH should handle it
+          }
+        }
+      }
+    } catch (e) {
+      // Package not found - this is okay, we'll rely on NODE_PATH
+      // and the project's node_modules being accessible
+    }
+  }
+}
+
 function createBrowserPolyfills() {
   return `
     if (typeof globalThis.window === 'undefined') {
@@ -111,6 +241,33 @@ export async function build(opts: BuildOptions) {
   // Create a temporary directory for intermediate files
   const tmpDir = await mkdtemp(join(tmpdir(), "preliquify-"));
 
+  // Find project root from the first file (or srcDir)
+  const projectRoot = await findProjectRoot(srcDir);
+  if (!projectRoot) {
+    throw new FileSystemError(
+      "Could not find project root (node_modules directory). Make sure you're running PreLiquify from a project with node_modules.",
+      srcDir
+    );
+  }
+
+  // External packages that need to be resolved from project's node_modules
+  const externalPackages = [
+    "preact",
+    "preact/hooks",
+    "preact-render-to-string",
+  ];
+
+  // Set up node_modules in temp directory with symlinks to external dependencies
+  await setupTempNodeModules(projectRoot, tmpDir, externalPackages);
+
+  // Store original NODE_PATH and extend it to include project's node_modules
+  const originalNodePath = process.env.NODE_PATH;
+  const projectNodeModules = join(projectRoot, "node_modules");
+  const extendedNodePath = originalNodePath
+    ? `${projectNodeModules}${process.platform === "win32" ? ";" : ":"}${originalNodePath}`
+    : projectNodeModules;
+  process.env.NODE_PATH = extendedNodePath;
+
   try {
     let needsRuntime = false;
     const concurrency = 4; // Process 4 files in parallel
@@ -137,7 +294,7 @@ export async function build(opts: BuildOptions) {
               outfile: tmpOut,
               jsx: "automatic",
               jsxImportSource: "preact",
-              external: ["preact", "preact/hooks", "preact-render-to-string"],
+              external: externalPackages,
               banner: {
                 js: createBrowserPolyfills(),
               },
@@ -149,50 +306,6 @@ export async function build(opts: BuildOptions) {
               legalComments: "none",
             });
 
-            // Create a require function from the compiler's context to resolve preact
-            const compilerRequire = createRequire(import.meta.url);
-            let preactPath: string | undefined;
-            try {
-              preactPath = compilerRequire.resolve("preact");
-            } catch (e) {
-              // Fallback: try to find preact in the project's node_modules
-              const projectRoot = dirname(file);
-              let current = projectRoot;
-              while (current !== dirname(current)) {
-                const nodeModules = join(current, "node_modules");
-                try {
-                  await fs.access(nodeModules);
-                  const testPreact = join(nodeModules, "preact");
-                  await fs.access(testPreact);
-                  preactPath = testPreact;
-                  break;
-                } catch {
-                  current = dirname(current);
-                }
-              }
-            }
-
-            if (!preactPath) {
-              throw new Error(
-                "Could not find preact package. Make sure preact is installed."
-              );
-            }
-
-            // Create node_modules in temp directory with symlinks to preact
-            // This allows Node to resolve preact when importing the bundled file
-            const tmpNodeModules = join(tmpDir, "node_modules");
-            await fs.mkdir(tmpNodeModules, { recursive: true });
-            const tmpPreact = join(tmpNodeModules, "preact");
-
-            try {
-              // Create symlink to preact
-              await fs.symlink(preactPath, tmpPreact, "dir");
-            } catch (e: any) {
-              // If symlink fails (e.g., Windows without admin rights),
-              // Node should still resolve from parent directories
-              // We'll rely on resolveDir in esbuild and Node's module resolution
-            }
-
             // Create a safe import context with polyfills
             const polyfillCode = createBrowserPolyfills();
             const modUrl = pathToFileURL(tmpOut).href;
@@ -200,6 +313,9 @@ export async function build(opts: BuildOptions) {
             // Evaluate polyfills before importing
             eval(polyfillCode);
 
+            // Import the bundled module
+            // With NODE_PATH set and symlinks in place, Node.js should be able to resolve
+            // all external dependencies from the project's node_modules
             const mod = await import(modUrl);
             const liquid = await renderComponentToLiquid(mod, file);
 
@@ -301,6 +417,13 @@ export async function build(opts: BuildOptions) {
       console.log(`✅ Successfully compiled ${entries.length} component(s)`);
     }
   } finally {
+    // Restore original NODE_PATH
+    if (originalNodePath !== undefined) {
+      process.env.NODE_PATH = originalNodePath || "";
+    } else {
+      delete process.env.NODE_PATH;
+    }
+
     // Clean up temporary directory
     try {
       await fs.rm(tmpDir, { recursive: true, force: true });
