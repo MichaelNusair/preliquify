@@ -108,7 +108,9 @@ describe("Conditional", () => {
     it("should handle empty children", () => {
       const result = renderToString(
         <TargetProvider value="liquid">
-          <Conditional when={$.var("test")}>{null}</Conditional>
+          <Conditional when={$.var("test")}>
+            <></>
+          </Conditional>
         </TargetProvider>
       );
 

@@ -1,7 +1,6 @@
-export type Expr<T> = {
-  toLiquid(): string;
-  toClient(): (ctx: any) => T;
-};
+import type { Expr } from "./types.js";
+
+export type { Expr };
 
 export const $ = {
   lit<T>(v: T): Expr<T> {

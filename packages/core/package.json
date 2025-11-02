@@ -29,5 +29,11 @@
   "peerDependencies": {
     "preact": "^10.27.2"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "preact": "^10.27.2",
+    "preact-render-to-string": "^6.5.11",
+    "@testing-library/preact": "^3.2.4"
+  }
 }

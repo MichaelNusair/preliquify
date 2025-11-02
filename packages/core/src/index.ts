@@ -2,6 +2,7 @@ export * from "./expr.js";
 export * from "./expr-enhanced.js";
 export * from "./runtime.js";
 export * from "./liquid.js";
+export * from "./types.js";
 export * from "./primitives/Conditional.js";
 export * from "./primitives/For.js";
 export * from "./primitives/Choose.js";

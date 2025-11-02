@@ -14,6 +14,7 @@ import {
   FileSystemError,
   createErrorReporter,
 } from "./errors.js";
+import chokidar from "chokidar";
 
 function createBrowserPolyfills() {
   return `
@@ -112,102 +113,117 @@ export async function build(opts: BuildOptions) {
 
   try {
     let needsRuntime = false;
+    const concurrency = 4; // Process 4 files in parallel
 
-    for (const file of entries) {
-      const tmpOut = join(tmpDir, basename(file) + ".mjs");
+    // Process files in batches for better performance
+    const processBatch = async (batch: string[]) => {
+      return Promise.all(
+        batch.map(async (file) => {
+          const tmpOut = join(tmpDir, basename(file) + ".mjs");
 
-      try {
-        const code = await fs.readFile(file, "utf8");
-        if (needsClientRuntime(code)) needsRuntime = true;
+          try {
+            const code = await fs.readFile(file, "utf8");
+            if (needsClientRuntime(code)) needsRuntime = true;
 
-        // Bundle this TSX to ESM so Node can import it for SSR-to-Liquid
-        // Keep preact external so it uses the same instance as renderToLiquid
-        // (needed for hooks to work correctly)
+            // Bundle this TSX to ESM so Node can import it for SSR-to-Liquid
+            // Keep preact external so it uses the same instance as renderToLiquid
+            // (needed for hooks to work correctly)
 
-        await esbuild({
-          entryPoints: [file],
-          bundle: true,
-          format: "esm",
-          platform: "node",
-          outfile: tmpOut,
-          jsx: "automatic",
-          jsxImportSource: "preact",
-          external: ["preact", "preact/hooks", "preact-render-to-string"],
-          banner: {
-            js: createBrowserPolyfills(),
-          },
-        });
+            await esbuild({
+              entryPoints: [file],
+              bundle: true,
+              format: "esm",
+              platform: "node",
+              outfile: tmpOut,
+              jsx: "automatic",
+              jsxImportSource: "preact",
+              external: ["preact", "preact/hooks", "preact-render-to-string"],
+              banner: {
+                js: createBrowserPolyfills(),
+              },
+              // Performance optimizations
+              treeShaking: true,
+              minifySyntax: true,
+              minifyIdentifiers: false, // Keep identifiers for better debugging
+              target: "node14",
+              legalComments: "none",
+            });
 
-        // Create a require function from the compiler's context to resolve preact
-        const compilerRequire = createRequire(import.meta.url);
-        let preactPath: string | undefined;
-        try {
-          preactPath = compilerRequire.resolve("preact");
-        } catch (e) {
-          // Fallback: try to find preact in the project's node_modules
-          const projectRoot = dirname(file);
-          let current = projectRoot;
-          while (current !== dirname(current)) {
-            const nodeModules = join(current, "node_modules");
+            // Create a require function from the compiler's context to resolve preact
+            const compilerRequire = createRequire(import.meta.url);
+            let preactPath: string | undefined;
             try {
-              await fs.access(nodeModules);
-              const testPreact = join(nodeModules, "preact");
-              await fs.access(testPreact);
-              preactPath = testPreact;
-              break;
-            } catch {
-              current = dirname(current);
+              preactPath = compilerRequire.resolve("preact");
+            } catch (e) {
+              // Fallback: try to find preact in the project's node_modules
+              const projectRoot = dirname(file);
+              let current = projectRoot;
+              while (current !== dirname(current)) {
+                const nodeModules = join(current, "node_modules");
+                try {
+                  await fs.access(nodeModules);
+                  const testPreact = join(nodeModules, "preact");
+                  await fs.access(testPreact);
+                  preactPath = testPreact;
+                  break;
+                } catch {
+                  current = dirname(current);
+                }
+              }
             }
+
+            if (!preactPath) {
+              throw new Error(
+                "Could not find preact package. Make sure preact is installed."
+              );
+            }
+
+            // Create node_modules in temp directory with symlinks to preact
+            // This allows Node to resolve preact when importing the bundled file
+            const tmpNodeModules = join(tmpDir, "node_modules");
+            await fs.mkdir(tmpNodeModules, { recursive: true });
+            const tmpPreact = join(tmpNodeModules, "preact");
+
+            try {
+              // Create symlink to preact
+              await fs.symlink(preactPath, tmpPreact, "dir");
+            } catch (e: any) {
+              // If symlink fails (e.g., Windows without admin rights),
+              // Node should still resolve from parent directories
+              // We'll rely on resolveDir in esbuild and Node's module resolution
+            }
+
+            // Create a safe import context with polyfills
+            const polyfillCode = createBrowserPolyfills();
+            const modUrl = pathToFileURL(tmpOut).href;
+
+            // Evaluate polyfills before importing
+            eval(polyfillCode);
+
+            const mod = await import(modUrl);
+            const liquid = await renderComponentToLiquid(mod, file);
+
+            const outPath = join(
+              outLiquidDir,
+              basename(file).replace(/\.tsx$/, ".liquid")
+            );
+            await fs.writeFile(outPath, liquid, "utf8");
+          } catch (error: any) {
+            const compilationError = new CompilationError(
+              error.message || String(error),
+              file,
+              error
+            );
+            errorReporter.report(compilationError);
           }
-        }
+        })
+      );
+    };
 
-        if (!preactPath) {
-          throw new Error(
-            "Could not find preact package. Make sure preact is installed."
-          );
-        }
-
-        // Create node_modules in temp directory with symlinks to preact
-        // This allows Node to resolve preact when importing the bundled file
-        const tmpNodeModules = join(tmpDir, "node_modules");
-        await fs.mkdir(tmpNodeModules, { recursive: true });
-        const tmpPreact = join(tmpNodeModules, "preact");
-
-        try {
-          // Create symlink to preact
-          await fs.symlink(preactPath, tmpPreact, "dir");
-        } catch (e: any) {
-          // If symlink fails (e.g., Windows without admin rights),
-          // Node should still resolve from parent directories
-          // We'll rely on resolveDir in esbuild and Node's module resolution
-        }
-
-        // Create a safe import context with polyfills
-        const polyfillCode = createBrowserPolyfills();
-        const modUrl = pathToFileURL(tmpOut).href;
-
-        // Evaluate polyfills before importing
-        eval(polyfillCode);
-
-        const mod = await import(modUrl);
-        const liquid = await renderComponentToLiquid(mod, file);
-
-        const outPath = join(
-          outLiquidDir,
-          basename(file).replace(/\.tsx$/, ".liquid")
-        );
-        await fs.writeFile(outPath, liquid, "utf8");
-      } catch (error: any) {
-        const compilationError = new CompilationError(
-          error.message || String(error),
-          file,
-          error
-        );
-        errorReporter.report(compilationError);
-
-        // Continue processing other files
-        continue;
-      }
+    // Process files in batches
+    for (let i = 0; i < entries.length; i += concurrency) {
+      const batch = entries.slice(i, i + concurrency);
+      await processBatch(batch);
     }
 
     // Ship enhanced client runtime if needed
@@ -228,6 +244,13 @@ export async function build(opts: BuildOptions) {
           outfile: runtimeOutPath,
           minify: true,
           target: ["es2015"],
+          // Additional optimizations
+          treeShaking: true,
+          mangleProps: /^_/, // Mangle private properties starting with _
+          legalComments: "none",
+          pure: ["console.log"], // Remove console.logs in production
+          drop: ["debugger"],
+          globalName: "PreliquifyRuntime",
         });
 
         console.log(`✅ Generated client runtime: ${runtimeOutPath}`);
@@ -267,9 +290,7 @@ export async function build(opts: BuildOptions) {
     }
 
     if (watch) {
-      console.log(
-        "[preliquify] watch mode not implemented in boilerplate — add chokidar here."
-      );
+      await startWatchMode(opts, errorReporter);
     }
 
     // Check if any errors occurred during compilation
@@ -287,4 +308,81 @@ export async function build(opts: BuildOptions) {
       // Ignore cleanup errors
     }
   }
+}
+
+async function startWatchMode(
+  opts: BuildOptions,
+  errorReporter: ReturnType<typeof createErrorReporter>
+) {
+  const { srcDir, outLiquidDir, verbose } = opts;
+
+  console.log("\n👀 Starting watch mode...");
+  console.log(`   Watching: ${srcDir}`);
+  console.log(`   Output: ${outLiquidDir}\n`);
+
+  // Create file watcher
+  const watcher = chokidar.watch("**/*.tsx", {
+    cwd: srcDir,
+    ignored: /(^|[\/\\])\../, // ignore dotfiles
+    persistent: true,
+    ignoreInitial: true,
+  });
+
+  // Debounce to handle multiple rapid changes
+  let buildTimeout: NodeJS.Timeout | null = null;
+  const debouncedBuild = async (path: string, event: string) => {
+    if (buildTimeout) clearTimeout(buildTimeout);
+
+    buildTimeout = setTimeout(async () => {
+      console.log(`\n⚡ ${event}: ${path}`);
+      errorReporter.clear();
+
+      try {
+        // Rebuild all files (you could optimize to rebuild only changed files)
+        await build({ ...opts, watch: false });
+      } catch (error) {
+        // Errors are already reported by errorReporter
+        if (verbose) {
+          console.error("\n❌ Build failed, waiting for changes...");
+        }
+      }
+    }, 300); // 300ms debounce
+  };
+
+  // Watch events
+  watcher
+    .on("add", (path) => debouncedBuild(path, "Added"))
+    .on("change", (path) => debouncedBuild(path, "Changed"))
+    .on("unlink", async (path) => {
+      console.log(`\n🗑️  Removed: ${path}`);
+
+      // Remove corresponding .liquid file
+      const liquidFile = join(
+        outLiquidDir,
+        basename(path).replace(/\.tsx$/, ".liquid")
+      );
+
+      try {
+        await fs.unlink(liquidFile);
+        console.log(`   Deleted: ${liquidFile}`);
+      } catch (error) {
+        // File might not exist, that's okay
+      }
+    })
+    .on("error", (error) => {
+      console.error("\n❌ Watcher error:", error);
+    })
+    .on("ready", () => {
+      console.log("✅ Ready for changes\n");
+    });
+
+  // Handle graceful shutdown
+  process.on("SIGINT", () => {
+    console.log("\n\n👋 Stopping watch mode...");
+    watcher.close();
+    process.exit(0);
+  });
+
+  // Keep process alive
+  await new Promise(() => {});
 }

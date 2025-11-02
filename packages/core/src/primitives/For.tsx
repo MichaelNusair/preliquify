@@ -1,12 +1,8 @@
 import { h, Fragment } from "preact";
 import { useTarget } from "../runtime.js";
-import type { Expr } from "../expr.js";
+import type { ForProps } from "../types.js";
 
-export function For<T>(props: {
-  each: Expr<T[]>;
-  as: string;
-  children: h.JSX.Element;
-}) {
+export function For<T>(props: ForProps<T>) {
   const target = useTarget();
   if (target === "liquid") {
     const coll = props.each.toLiquid();

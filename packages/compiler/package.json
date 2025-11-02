@@ -29,11 +29,15 @@
   "dependencies": {
     "esbuild": "^0.24.0",
     "fast-glob": "^3.3.2",
+    "chokidar": "^3.5.3",
     "preact": "^10.27.2",
     "preact-render-to-string": "^6.5.11",
     "@preliquify/core": "workspace:*"
   },
   "peerDependencies": {
     "@preliquify/preact": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.6"
   }
 }

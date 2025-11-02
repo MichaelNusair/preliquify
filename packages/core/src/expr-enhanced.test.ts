@@ -123,7 +123,7 @@ describe("Enhanced Expression System ($$)", () => {
         { name: "B", price: 20 },
       ];
 
-      const sorted = expr.toClient()({ products });
+      const sorted = expr.toClient()({ products }) as typeof products;
       expect(sorted[0].price).toBe(10);
       expect(sorted[1].price).toBe(20);
       expect(sorted[2].price).toBe(30);
@@ -163,7 +163,7 @@ describe("Enhanced Expression System ($$)", () => {
         { name: "C", available: true },
       ];
 
-      const filtered = expr.toClient()({ products });
+      const filtered = expr.toClient()({ products }) as typeof products;
       expect(filtered).toHaveLength(2);
       expect(filtered[0].name).toBe("A");
       expect(filtered[1].name).toBe("C");
@@ -274,7 +274,7 @@ describe("Enhanced Expression System ($$)", () => {
         { name: "A", price: 10, available: true },
       ];
 
-      const result = expr.toClient()({ products });
+      const result = expr.toClient()({ products }) as typeof products;
       expect(result).toHaveLength(2);
       expect(result[0].name).toBe("A");
       expect(result[1].name).toBe("B");

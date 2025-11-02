@@ -1,7 +1,7 @@
 // Enhanced expression system with more Liquid operators and filters
-import type { Expr } from "./expr";
+import type { Expr, EnhancedExpressionBuilder } from "./types";
 
-export const $$ = {
+export const $$: EnhancedExpressionBuilder = {
   // All existing operators from $
   lit<T>(v: T): Expr<T> {
     return {
