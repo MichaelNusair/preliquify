@@ -7,6 +7,46 @@ import { renderComponentToLiquid } from "./renderToLiquid.js";
 import { needsClientRuntime } from "./detectIslands.js";
 import type { BuildOptions } from "./types.js";
 
+function createBrowserPolyfills() {
+  return `
+    if (typeof globalThis.window === 'undefined') {
+      globalThis.window = {
+        location: { href: '', pathname: '', reload: () => {} },
+        innerWidth: 1024,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        getComputedStyle: (el) => ({ display: 'block' }),
+        history: {
+          pushState: () => {},
+          replaceState: () => {},
+        },
+      };
+    }
+    if (typeof globalThis.document === 'undefined') {
+      globalThis.document = {
+        querySelector: () => null,
+        querySelectorAll: () => [],
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        createElement: () => ({
+          setAttribute: () => {},
+          getAttribute: () => null,
+          classList: { add: () => {}, remove: () => {} },
+          textContent: '',
+          appendChild: () => {},
+        }),
+        head: {
+          appendChild: () => {},
+        },
+        body: {
+          appendChild: () => {},
+        },
+        readyState: 'complete',
+      };
+    }
+  `;
+}
+
 export async function build(opts: BuildOptions) {
   const { srcDir, outLiquidDir, outClientDir, watch } = opts;
 
@@ -32,9 +72,19 @@ export async function build(opts: BuildOptions) {
         jsx: "automatic",
         jsxImportSource: "preact",
         external: ["preact", "@preliquify/core", "@preliquify/preact"],
+        banner: {
+          js: createBrowserPolyfills(),
+        },
       });
 
-      const mod = await import(pathToFileURL(tmpOut).href);
+      // Create a safe import context with polyfills
+      const polyfillCode = createBrowserPolyfills();
+      const modUrl = pathToFileURL(tmpOut).href;
+
+      // Evaluate polyfills before importing
+      eval(polyfillCode);
+
+      const mod = await import(modUrl);
       const liquid = await renderComponentToLiquid(mod, file);
 
       const outPath = join(
