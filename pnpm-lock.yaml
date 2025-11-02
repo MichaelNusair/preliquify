@@ -30,7 +30,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/preact
       preact:
-        specifier: ^10.22.0
+        specifier: ^10.27.2
         version: 10.27.2
 
   packages/cli:
@@ -57,7 +57,7 @@ importers:
         specifier: ^3.3.2
         version: 3.3.3
       preact:
-        specifier: ^10.22.0
+        specifier: ^10.27.2
         version: 10.27.2
       preact-render-to-string:
         specifier: ^6.5.11
@@ -66,7 +66,7 @@ importers:
   packages/core:
     dependencies:
       preact:
-        specifier: ^10.22.0
+        specifier: ^10.27.2
         version: 10.27.2
 
   packages/preact:
@@ -75,7 +75,7 @@ importers:
         specifier: workspace:*
         version: link:../core
       preact:
-        specifier: ^10.22.0
+        specifier: ^10.27.2
         version: 10.27.2
 
 packages:
