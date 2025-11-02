@@ -1,4 +1,5 @@
 export * from "./expr.js";
+export * from "./expr-enhanced.js";
 export * from "./runtime.js";
 export * from "./liquid.js";
 export * from "./primitives/Conditional.js";

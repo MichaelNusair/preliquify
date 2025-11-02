@@ -7,9 +7,19 @@ import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { build as esbuild } from "esbuild";
 
-const cmd = process.argv[2] || "build";
+const args = process.argv.slice(2);
+const cmd = args[0] || "build";
+const flags = {
+  verbose: args.includes("--verbose") || args.includes("-v"),
+  watch: args.includes("--watch") || args.includes("-w"),
+};
+
 if (cmd !== "build") {
-  console.error(`Unknown command: ${cmd}`);
+  console.error(`\n❌ Unknown command: ${cmd}`);
+  console.error(`\nUsage: preliquify build [options]`);
+  console.error(`\nOptions:`);
+  console.error(`  --watch, -w     Watch for changes`);
+  console.error(`  --verbose, -v   Show detailed error information\n`);
   process.exit(1);
 }
 
@@ -55,10 +65,12 @@ async function loadConfig(): Promise<any> {
         // File doesn't exist or can't be imported, try next
         if (e.code !== "ENOENT") {
           // Log non-file-not-found errors for debugging
-          console.warn(
-            `[preliquify] Error loading config from ${configPath}:`,
-            e.message
-          );
+          if (flags.verbose) {
+            console.warn(
+              `[preliquify] Error loading config from ${configPath}:`,
+              e.message
+            );
+          }
         }
         continue;
       }
@@ -77,16 +89,21 @@ async function loadConfig(): Promise<any> {
 
 const cfg = (await loadConfig()) ?? {};
 
+console.log("\n🚀 Starting PreLiquify build...\n");
+
 try {
   await build({
     srcDir: cfg.srcDir ?? resolve("src/snippets"),
     outLiquidDir: cfg.outLiquidDir ?? resolve("snippets"),
     outClientDir: cfg.outClientDir ?? resolve("assets"),
     jsxImportSource: cfg.jsxImportSource ?? "preact",
-    watch: !!cfg.watch,
+    watch: flags.watch || !!cfg.watch,
+    verbose: flags.verbose,
   });
 } catch (error: any) {
-  const errorMessage = error.message || String(error);
-  console.error(errorMessage);
+  // Error formatting is handled by the build function
+  if (flags.verbose && error.stack) {
+    console.error("\nFull stack trace:", error.stack);
+  }
   process.exit(1);
 }

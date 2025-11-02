@@ -9,6 +9,11 @@ import { renderComponentToLiquid } from "./renderToLiquid.js";
 import { needsClientRuntime } from "./detectIslands.js";
 import type { BuildOptions } from "./types.js";
 import { createRequire } from "node:module";
+import {
+  CompilationError,
+  FileSystemError,
+  createErrorReporter,
+} from "./errors.js";
 
 function createBrowserPolyfills() {
   return `
@@ -72,11 +77,35 @@ function createBrowserPolyfills() {
 }
 
 export async function build(opts: BuildOptions) {
-  const { srcDir, outLiquidDir, outClientDir, watch } = opts;
+  const { srcDir, outLiquidDir, outClientDir, watch, verbose = false } = opts;
+  const errorReporter = createErrorReporter(verbose);
 
-  const entries = await fg("**/*.tsx", { cwd: srcDir, absolute: true });
-  await fs.mkdir(outLiquidDir, { recursive: true });
-  await fs.mkdir(outClientDir, { recursive: true });
+  let entries: string[];
+  try {
+    entries = await fg("**/*.tsx", { cwd: srcDir, absolute: true });
+  } catch (error: any) {
+    throw new FileSystemError(
+      `Failed to scan source directory: ${error.message}`,
+      srcDir,
+      error
+    );
+  }
+
+  if (entries.length === 0) {
+    console.warn(`⚠️  No .tsx files found in ${srcDir}`);
+    return;
+  }
+
+  try {
+    await fs.mkdir(outLiquidDir, { recursive: true });
+    await fs.mkdir(outClientDir, { recursive: true });
+  } catch (error: any) {
+    throw new FileSystemError(
+      `Failed to create output directories: ${error.message}`,
+      outLiquidDir,
+      error
+    );
+  }
 
   // Create a temporary directory for intermediate files
   const tmpDir = await mkdtemp(join(tmpdir(), "preliquify-"));
@@ -169,14 +198,44 @@ export async function build(opts: BuildOptions) {
         );
         await fs.writeFile(outPath, liquid, "utf8");
       } catch (error: any) {
-        const errorMessage = error.message || String(error);
-        throw new Error(`Error processing ${file}: ${errorMessage}`);
+        const compilationError = new CompilationError(
+          error.message || String(error),
+          file,
+          error
+        );
+        errorReporter.report(compilationError);
+
+        // Continue processing other files
+        continue;
       }
     }
 
-    // Ship a tiny client runtime if needed
+    // Ship enhanced client runtime if needed
     if (needsRuntime) {
-      const runtimeJs = `
+      // Build the runtime
+      const runtimePath = fileURLToPath(
+        new URL("./runtime/client-runtime.ts", import.meta.url)
+      );
+
+      const runtimeOutPath = join(outClientDir, "preliquify.runtime.js");
+
+      try {
+        await esbuild({
+          entryPoints: [runtimePath],
+          bundle: true,
+          format: "iife",
+          platform: "browser",
+          outfile: runtimeOutPath,
+          minify: true,
+          target: ["es2015"],
+        });
+
+        console.log(`✅ Generated client runtime: ${runtimeOutPath}`);
+      } catch (error: any) {
+        // Fallback to simple runtime if build fails
+        console.warn("⚠️  Failed to build enhanced runtime, using fallback");
+
+        const fallbackRuntime = `
 (function(){
   function parseProps(el){
     try { return JSON.parse(el.getAttribute('data-preliq-props')); }
@@ -188,29 +247,37 @@ export async function build(opts: BuildOptions) {
       var el = nodes[i];
       var name = el.getAttribute('data-preliq-island');
       var id = el.getAttribute('data-preliq-id');
-      // Convention: components are globally exposed under window.Preliquify[name]
-      var Comp = (window as any).Preliquify?.[name];
+      var Comp = (window.Preliquify||{})[name];
       if (!Comp) continue;
       var props = parseProps(el) || {};
-      // This assumes Preact is available globally (or bundle it).
-      (window as any).preact?.render((window as any).preact.h(Comp, props), el);
+      if (window.preact) {
+        window.preact.render(window.preact.h(Comp, props), el);
+      }
     }
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
-  else mount();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mount);
+  } else {
+    mount();
+  }
 })();
 `;
-      await fs.writeFile(
-        join(outClientDir, "preliquify.runtime.js"),
-        runtimeJs,
-        "utf8"
-      );
+        await fs.writeFile(runtimeOutPath, fallbackRuntime, "utf8");
+      }
     }
 
     if (watch) {
       console.log(
         "[preliquify] watch mode not implemented in boilerplate — add chokidar here."
       );
+    }
+
+    // Check if any errors occurred during compilation
+    errorReporter.throwIfErrors();
+
+    // Success message
+    if (entries.length > 0 && !errorReporter.hasErrors()) {
+      console.log(`✅ Successfully compiled ${entries.length} component(s)`);
     }
   } finally {
     // Clean up temporary directory
