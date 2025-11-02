@@ -72,10 +72,16 @@ async function loadConfig(): Promise<any> {
 
 const cfg = (await loadConfig()) ?? {};
 
-await build({
-  srcDir: cfg.srcDir ?? resolve("src/snippets"),
-  outLiquidDir: cfg.outLiquidDir ?? resolve("snippets"),
-  outClientDir: cfg.outClientDir ?? resolve("assets"),
-  jsxImportSource: cfg.jsxImportSource ?? "preact",
-  watch: !!cfg.watch,
-});
+try {
+  await build({
+    srcDir: cfg.srcDir ?? resolve("src/snippets"),
+    outLiquidDir: cfg.outLiquidDir ?? resolve("snippets"),
+    outClientDir: cfg.outClientDir ?? resolve("assets"),
+    jsxImportSource: cfg.jsxImportSource ?? "preact",
+    watch: !!cfg.watch,
+  });
+} catch (error: any) {
+  const errorMessage = error.message || String(error);
+  console.error(errorMessage);
+  process.exit(1);
+}
