@@ -11,35 +11,56 @@ function createBrowserPolyfills() {
   return `
     if (typeof globalThis.window === 'undefined') {
       globalThis.window = {
-        location: { href: '', pathname: '', reload: () => {} },
+        location: { 
+          href: '', 
+          pathname: '', 
+          reload: () => {},
+          origin: '',
+          search: '',
+          hash: '',
+        },
         innerWidth: 1024,
+        innerHeight: 768,
         addEventListener: () => {},
         removeEventListener: () => {},
-        getComputedStyle: (el) => ({ display: 'block' }),
+        getComputedStyle: (el) => ({ 
+          display: el?.style?.display || 'block',
+          visibility: el?.style?.visibility || 'visible',
+        }),
         history: {
           pushState: () => {},
           replaceState: () => {},
+          back: () => {},
+          forward: () => {},
         },
       };
     }
     if (typeof globalThis.document === 'undefined') {
+      const createMockElement = () => ({
+        setAttribute: () => {},
+        getAttribute: () => null,
+        classList: { add: () => {}, remove: () => {}, contains: () => false },
+        textContent: '',
+        appendChild: () => {},
+        remove: () => {},
+        closest: () => null,
+        querySelector: () => null,
+        querySelectorAll: () => [],
+      });
       globalThis.document = {
         querySelector: () => null,
         querySelectorAll: () => [],
         addEventListener: () => {},
         removeEventListener: () => {},
-        createElement: () => ({
-          setAttribute: () => {},
-          getAttribute: () => null,
-          classList: { add: () => {}, remove: () => {} },
-          textContent: '',
-          appendChild: () => {},
-        }),
+        createElement: createMockElement,
+        createTextNode: () => ({ textContent: '' }),
         head: {
           appendChild: () => {},
+          removeChild: () => {},
         },
         body: {
           appendChild: () => {},
+          removeChild: () => {},
         },
         readyState: 'complete',
       };
