@@ -1,6 +1,6 @@
 import fg from "fast-glob";
 import { promises as fs } from "node:fs";
-import { join, dirname, basename, resolve } from "node:path";
+import { join, dirname, basename, resolve, parse } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -21,15 +21,17 @@ import chokidar from "chokidar";
  */
 async function findProjectRoot(startPath: string): Promise<string | null> {
   let current = resolve(startPath);
-  const root = dirname(current);
+  const filesystemRoot = parse(current).root;
 
-  while (current !== root) {
+  while (current !== filesystemRoot) {
     const nodeModules = join(current, "node_modules");
     try {
       await fs.access(nodeModules);
       return current;
     } catch {
-      current = dirname(current);
+      const next = dirname(current);
+      if (next === current) break;
+      current = next;
     }
   }
 
