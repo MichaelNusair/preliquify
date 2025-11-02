@@ -229,6 +229,47 @@ export async function build(opts: BuildOptions) {
     return;
   }
 
+  const ignorePatterns = [
+    "**/structures/**",
+    "**/layout-hydrations/**",
+    "**/hydration-components.ts",
+    "**/App.tsx",
+    "**/index.tsx",
+    "**/index.ts",
+    "**/dev/**",
+    "**/preliquify/**",
+    "**/build.ts",
+    "**/build-js.ts",
+    "**/render.tsx",
+    "**/contexts/**",
+    "**/hooks/**",
+    "**/features/**",
+    "**/components/zoom/**",
+    "**/components/GalleryComponent.tsx",
+    "**/components/MediaItem.tsx",
+    "**/components/PureSlider.tsx",
+    "**/utils/**",
+    "**/types/**",
+  ];
+
+  const srcDirResolved = resolve(srcDir);
+  entries = entries.filter((file) => {
+    const relativePath = file
+      .replace(srcDirResolved + "/", "")
+      .replace(/^\//, "");
+    return !ignorePatterns.some((pattern) => {
+      const regex = new RegExp(
+        "^" + pattern.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*") + "$"
+      );
+      return regex.test(relativePath);
+    });
+  });
+
+  if (entries.length === 0) {
+    console.warn(`⚠️  No .tsx files found in ${srcDir} after filtering`);
+    return;
+  }
+
   try {
     await fs.mkdir(outLiquidDir, { recursive: true });
     await fs.mkdir(outClientDir, { recursive: true });
