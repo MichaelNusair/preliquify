@@ -230,7 +230,7 @@ export async function build(opts: BuildOptions) {
     if (needsRuntime) {
       // Build the runtime
       const runtimePath = fileURLToPath(
-        new URL("./runtime/client-runtime.ts", import.meta.url)
+        new URL("../src/runtime/client-runtime.ts", import.meta.url)
       );
 
       const runtimeOutPath = join(outClientDir, "preliquify.runtime.js");

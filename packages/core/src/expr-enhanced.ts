@@ -1,5 +1,5 @@
 // Enhanced expression system with more Liquid operators and filters
-import type { Expr, EnhancedExpressionBuilder } from "./types";
+import type { Expr, EnhancedExpressionBuilder } from "./types.js";
 
 export const $$: EnhancedExpressionBuilder = {
   // All existing operators from $
@@ -541,5 +541,5 @@ export const $$: EnhancedExpressionBuilder = {
 };
 
 // Export both the enhanced ($$ and the original $ for backward compatibility
-export { $ } from "./expr";
+export { $ } from "./expr.js";
 export { $$ as $enhanced };
