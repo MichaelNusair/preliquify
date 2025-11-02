@@ -2,6 +2,8 @@ import fg from "fast-glob";
 import { promises as fs } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { pathToFileURL } from "node:url";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { build as esbuild } from "esbuild";
 import { renderComponentToLiquid } from "./renderToLiquid.js";
 import { needsClientRuntime } from "./detectIslands.js";
@@ -75,54 +77,58 @@ export async function build(opts: BuildOptions) {
   await fs.mkdir(outLiquidDir, { recursive: true });
   await fs.mkdir(outClientDir, { recursive: true });
 
-  let needsRuntime = false;
+  // Create a temporary directory for intermediate files
+  const tmpDir = await mkdtemp(join(tmpdir(), "preliquify-"));
 
-  for (const file of entries) {
-    try {
-      const code = await fs.readFile(file, "utf8");
-      if (needsClientRuntime(code)) needsRuntime = true;
+  try {
+    let needsRuntime = false;
 
-      // Bundle this TSX to ESM so Node can import it for SSR-to-Liquid
-      const tmpOut = file + ".mjs";
-      await esbuild({
-        entryPoints: [file],
-        bundle: true,
-        format: "esm",
-        platform: "node",
-        outfile: tmpOut,
-        jsx: "automatic",
-        jsxImportSource: "preact",
-        external: ["preact", "@preliquify/core", "@preliquify/preact"],
-        banner: {
-          js: createBrowserPolyfills(),
-        },
-      });
+    for (const file of entries) {
+      const tmpOut = join(tmpDir, basename(file) + ".mjs");
 
-      // Create a safe import context with polyfills
-      const polyfillCode = createBrowserPolyfills();
-      const modUrl = pathToFileURL(tmpOut).href;
+      try {
+        const code = await fs.readFile(file, "utf8");
+        if (needsClientRuntime(code)) needsRuntime = true;
 
-      // Evaluate polyfills before importing
-      eval(polyfillCode);
+        // Bundle this TSX to ESM so Node can import it for SSR-to-Liquid
+        await esbuild({
+          entryPoints: [file],
+          bundle: true,
+          format: "esm",
+          platform: "node",
+          outfile: tmpOut,
+          jsx: "automatic",
+          jsxImportSource: "preact",
+          external: ["preact", "@preliquify/core", "@preliquify/preact"],
+          banner: {
+            js: createBrowserPolyfills(),
+          },
+        });
 
-      const mod = await import(modUrl);
-      const liquid = await renderComponentToLiquid(mod, file);
+        // Create a safe import context with polyfills
+        const polyfillCode = createBrowserPolyfills();
+        const modUrl = pathToFileURL(tmpOut).href;
 
-      const outPath = join(
-        outLiquidDir,
-        basename(file).replace(/\.tsx$/, ".liquid")
-      );
-      await fs.writeFile(outPath, liquid, "utf8");
-      await fs.rm(tmpOut);
-    } catch (error: any) {
-      const errorMessage = error.message || String(error);
-      throw new Error(`Error processing ${file}: ${errorMessage}`);
+        // Evaluate polyfills before importing
+        eval(polyfillCode);
+
+        const mod = await import(modUrl);
+        const liquid = await renderComponentToLiquid(mod, file);
+
+        const outPath = join(
+          outLiquidDir,
+          basename(file).replace(/\.tsx$/, ".liquid")
+        );
+        await fs.writeFile(outPath, liquid, "utf8");
+      } catch (error: any) {
+        const errorMessage = error.message || String(error);
+        throw new Error(`Error processing ${file}: ${errorMessage}`);
+      }
     }
-  }
 
-  // Ship a tiny client runtime if needed
-  if (needsRuntime) {
-    const runtimeJs = `
+    // Ship a tiny client runtime if needed
+    if (needsRuntime) {
+      const runtimeJs = `
 (function(){
   function parseProps(el){
     try { return JSON.parse(el.getAttribute('data-preliq-props')); }
@@ -146,16 +152,24 @@ export async function build(opts: BuildOptions) {
   else mount();
 })();
 `;
-    await fs.writeFile(
-      join(outClientDir, "preliquify.runtime.js"),
-      runtimeJs,
-      "utf8"
-    );
-  }
+      await fs.writeFile(
+        join(outClientDir, "preliquify.runtime.js"),
+        runtimeJs,
+        "utf8"
+      );
+    }
 
-  if (watch) {
-    console.log(
-      "[preliquify] watch mode not implemented in boilerplate — add chokidar here."
-    );
+    if (watch) {
+      console.log(
+        "[preliquify] watch mode not implemented in boilerplate — add chokidar here."
+      );
+    }
+  } finally {
+    // Clean up temporary directory
+    try {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
   }
 }

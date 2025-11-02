@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { build } from "@preliquify/compiler";
-import { resolve } from "node:path";
+import { resolve, join, basename } from "node:path";
 import { promises as fs } from "node:fs";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { build as esbuild } from "esbuild";
 
@@ -19,55 +21,58 @@ async function loadConfig(): Promise<any> {
     resolve(cwd, "preliquify.config.mjs"),
   ];
 
-  for (const configPath of possibleConfigs) {
-    try {
-      await fs.access(configPath);
-      // File exists, try to import it
-      let importPath: string;
+  // Create a temporary directory for config compilation
+  const tmpDir = await mkdtemp(join(tmpdir(), "preliquify-config-"));
 
-      if (configPath.endsWith(".ts")) {
-        // Transpile TS to ESM using esbuild
-        const tmpOut = configPath + ".mjs";
-        await esbuild({
-          entryPoints: [configPath],
-          bundle: true,
-          format: "esm",
-          platform: "node",
-          outfile: tmpOut,
-          external: [],
-        });
-        importPath = pathToFileURL(tmpOut).href;
-      } else {
-        importPath = pathToFileURL(configPath).href;
-      }
+  try {
+    for (const configPath of possibleConfigs) {
+      try {
+        await fs.access(configPath);
+        // File exists, try to import it
+        let importPath: string;
 
-      const mod = await import(importPath);
-      const cfg = mod.default || mod;
-
-      // Clean up temp file if we created one
-      if (configPath.endsWith(".ts")) {
-        try {
-          await fs.rm(configPath + ".mjs");
-        } catch {
-          // Ignore cleanup errors
+        if (configPath.endsWith(".ts")) {
+          // Transpile TS to ESM using esbuild
+          const tmpOut = join(tmpDir, basename(configPath) + ".mjs");
+          await esbuild({
+            entryPoints: [configPath],
+            bundle: true,
+            format: "esm",
+            platform: "node",
+            outfile: tmpOut,
+            external: [],
+          });
+          importPath = pathToFileURL(tmpOut).href;
+        } else {
+          importPath = pathToFileURL(configPath).href;
         }
-      }
 
-      return cfg;
-    } catch (e: any) {
-      // File doesn't exist or can't be imported, try next
-      if (e.code !== "ENOENT") {
-        // Log non-file-not-found errors for debugging
-        console.warn(
-          `[preliquify] Error loading config from ${configPath}:`,
-          e.message
-        );
+        const mod = await import(importPath);
+        const cfg = mod.default || mod;
+
+        return cfg;
+      } catch (e: any) {
+        // File doesn't exist or can't be imported, try next
+        if (e.code !== "ENOENT") {
+          // Log non-file-not-found errors for debugging
+          console.warn(
+            `[preliquify] Error loading config from ${configPath}:`,
+            e.message
+          );
+        }
+        continue;
       }
-      continue;
+    }
+
+    return null;
+  } finally {
+    // Clean up temporary directory
+    try {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
     }
   }
-
-  return null;
 }
 
 const cfg = (await loadConfig()) ?? {};
