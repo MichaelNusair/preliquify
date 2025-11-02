@@ -10,7 +10,7 @@
   "bugs": {
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
-  "version": "0.1.21",
+  "version": "0.1.22",
   "workspaces": [
     "packages/*",
     "examples/*"
