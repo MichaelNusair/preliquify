@@ -25,11 +25,15 @@ yarn add -D @preliquify/cli
 1. **Create a config file** (`preliquify.config.ts`):
 
 ```typescript
-export default {
+import type { PreliquifyConfig } from "@preliquify/cli";
+
+const config: PreliquifyConfig = {
   srcDir: "src/snippets",
   outLiquidDir: "snippets",
   outClientDir: "assets",
 };
+
+export default config;
 ```
 
 2. **Write a component** (`src/snippets/Hero.tsx`):
@@ -66,8 +70,20 @@ export default function Hero() {
 
 3. **Build**:
 
+After installing the package, you can run PreLiquify in several ways:
+
 ```bash
-preliquify build
+# Using npx (recommended for one-time use)
+npx preliquify build
+
+# Or if installed locally, use your package manager
+pnpm preliquify build
+npm run preliquify build
+yarn preliquify build
+
+# Or add a script to your package.json
+# "scripts": { "build:snippets": "preliquify build" }
+# Then run: pnpm build:snippets
 ```
 
 This generates:
@@ -76,17 +92,49 @@ This generates:
 
 ## Configuration
 
-Configuration options in `preliquify.config.ts`:
+You can configure PreLiquify in two ways:
+
+### 1. Config File (Recommended)
+
+Create a `preliquify.config.ts` (or `.js`/`.mjs`) in your project root:
 
 ```typescript
-export default {
-  srcDir?: string;           // Source directory (default: "src/snippets")
-  outLiquidDir?: string;     // Output Liquid directory (default: "snippets")
-  outClientDir?: string;     // Output assets directory (default: "assets")
-  jsxImportSource?: string;  // JSX import source (default: "preact")
-  watch?: boolean;           // Enable watch mode (default: false)
+import type { PreliquifyConfig } from "@preliquify/cli";
+
+const config: PreliquifyConfig = {
+  srcDir: "src/snippets",        // Source directory
+  outLiquidDir: "snippets",       // Output Liquid directory
+  outClientDir: "assets",         // Output assets directory
+  jsxImportSource: "preact",      // JSX import source
+  watch: false,                   // Enable watch mode
 };
+
+export default config;
 ```
+
+**Note:** Importing the `PreliquifyConfig` type provides TypeScript autocomplete and validation for your configuration.
+
+### 2. Command-Line Flags
+
+You can also pass configuration via command-line flags. Flags override config file values:
+
+```bash
+preliquify build --src-dir ./components --out-liquid-dir ./templates
+preliquify build --watch --verbose
+preliquify build --config ./custom-config.ts
+```
+
+**Available options:**
+- `-h, --help` - Show help message
+- `-w, --watch` - Watch for changes and rebuild
+- `-v, --verbose` - Show detailed error information
+- `-c, --config <path>` - Path to config file
+- `--src-dir <path>` - Source directory (default: `src/snippets`)
+- `--out-liquid-dir <path>` - Output directory for Liquid files (default: `snippets`)
+- `--out-client-dir <path>` - Output directory for client assets (default: `assets`)
+- `--jsx-import-source <pkg>` - JSX import source (default: `preact`)
+
+Run `preliquify build --help` to see all available options.
 
 ## Core Concepts
 

@@ -238,8 +238,8 @@ export async function build(opts: BuildOptions) {
         "**/components/MediaItem.tsx",
         "**/components/PureSlider.tsx",
         "**/utils/**",
-        "**/types/**"
-      ]
+        "**/types/**",
+      ],
     });
   } catch (error: any) {
     throw new FileSystemError(
