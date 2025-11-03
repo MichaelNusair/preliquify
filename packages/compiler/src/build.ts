@@ -357,9 +357,21 @@ export async function build(opts: BuildOptions) {
             }
             // If liquid is empty/whitespace, silently skip - don't create the file
           } catch (error: any) {
-            // If component can't be rendered (e.g., no valid export), skip silently
+            // If component can't be rendered due to missing export, skip silently
             // This happens for internal sub-components that aren't meant to be snippets
-            // No need to report errors for these cases
+            // But still report other compilation/runtime errors
+            const errorMessage = error?.message || String(error);
+            const isMissingComponentError = errorMessage.includes(
+              "No component export found"
+            );
+            if (!isMissingComponentError) {
+              const compilationError = new CompilationError(
+                errorMessage,
+                file,
+                error
+              );
+              errorReporter.report(compilationError);
+            }
           }
         })
       );
