@@ -218,28 +218,7 @@ export async function build(opts: BuildOptions) {
     entries = await fg("**/*.tsx", {
       cwd: srcDir,
       absolute: true,
-      ignore: [
-        "**/structures/**",
-        "**/layout-hydrations/**",
-        "**/hydration-components.ts",
-        "**/App.tsx",
-        "**/index.tsx",
-        "**/index.ts",
-        "**/dev/**",
-        "**/preliquify/**",
-        "**/build.ts",
-        "**/build-js.ts",
-        "**/render.tsx",
-        "**/contexts/**",
-        "**/hooks/**",
-        "**/features/**",
-        "**/components/zoom/**",
-        "**/components/GalleryComponent.tsx",
-        "**/components/MediaItem.tsx",
-        "**/components/PureSlider.tsx",
-        "**/utils/**",
-        "**/types/**",
-      ],
+      ignore: [],
     });
   } catch (error: any) {
     throw new FileSystemError(
