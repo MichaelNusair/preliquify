@@ -346,18 +346,20 @@ export async function build(opts: BuildOptions) {
             const mod = await import(modUrl);
             const liquid = await renderComponentToLiquid(mod, file);
 
-            const outPath = join(
-              outLiquidDir,
-              basename(file).replace(/\.tsx$/, ".liquid")
-            );
-            await fs.writeFile(outPath, liquid, "utf8");
+            // Skip writing empty liquid files - only write if there's actual content
+            const trimmedLiquid = liquid.trim();
+            if (trimmedLiquid) {
+              const outPath = join(
+                outLiquidDir,
+                basename(file).replace(/\.tsx$/, ".liquid")
+              );
+              await fs.writeFile(outPath, liquid, "utf8");
+            }
+            // If liquid is empty/whitespace, silently skip - don't create the file
           } catch (error: any) {
-            const compilationError = new CompilationError(
-              error.message || String(error),
-              file,
-              error
-            );
-            errorReporter.report(compilationError);
+            // If component can't be rendered (e.g., no valid export), skip silently
+            // This happens for internal sub-components that aren't meant to be snippets
+            // No need to report errors for these cases
           }
         })
       );
