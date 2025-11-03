@@ -21,8 +21,14 @@ interface ComponentProps {
 
 /**
  * Parse JSON from data attribute
+ * SSR-safe version that handles both Element and mock elements
  */
 function parseDataAttribute(element: Element, attribute: string): any {
+  // SSR guard: check if element has getAttribute method
+  if (!element || typeof element.getAttribute !== "function") {
+    return null;
+  }
+
   const value = element.getAttribute(attribute);
   if (!value) return null;
 
@@ -31,21 +37,33 @@ function parseDataAttribute(element: Element, attribute: string): any {
     const decoded = decodeURIComponent(value);
     return JSON.parse(decoded);
   } catch (error) {
-    console.warn(`[Hydration] Failed to parse ${attribute}:`, error);
+    // Only warn in browser context
+    if (typeof window !== "undefined") {
+      console.warn(`[Hydration] Failed to parse ${attribute}:`, error);
+    }
     return null;
   }
 }
 
 /**
  * Hydrate a single component instance
+ * SSR-safe version that guards browser APIs
  */
 function hydrateComponent(
   element: Element,
   Component: any,
   getProps: (el: Element) => ComponentProps
 ): void {
-  // Check if already hydrated
-  if (element.hasAttribute("data-hydrated")) {
+  // SSR guard: only run in browser
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return;
+  }
+
+  // Check if already hydrated (with SSR-safe check)
+  if (
+    typeof element.hasAttribute === "function" &&
+    element.hasAttribute("data-hydrated")
+  ) {
     return;
   }
 
@@ -62,30 +80,47 @@ function hydrateComponent(
     const vnode = preact.h(Component, props);
     preact.render(vnode, element);
 
-    // Mark as hydrated
-    element.setAttribute("data-hydrated", "true");
+    // Mark as hydrated (with SSR-safe check)
+    if (typeof element.setAttribute === "function") {
+      element.setAttribute("data-hydrated", "true");
+    }
 
-    // Dispatch event
-    element.dispatchEvent(
-      new CustomEvent("component:hydrated", {
-        detail: { element, props },
-        bubbles: true,
-      })
-    );
+    // Dispatch event (with SSR-safe check)
+    if (typeof element.dispatchEvent === "function") {
+      element.dispatchEvent(
+        new CustomEvent("component:hydrated", {
+          detail: { element, props },
+          bubbles: true,
+        })
+      );
+    }
   } catch (error) {
-    console.error("[Hydration] Error:", error);
-    element.setAttribute("data-hydration-error", "true");
+    if (typeof window !== "undefined") {
+      console.error("[Hydration] Error:", error);
+    }
+    if (typeof element.setAttribute === "function") {
+      element.setAttribute("data-hydration-error", "true");
+    }
   }
 }
 
 /**
  * Find and hydrate all component instances
+ * SSR-safe version that guards document access
  */
 function hydrateAll(
   selector: string,
   Component: any,
   getProps: (el: Element) => ComponentProps
 ): void {
+  // SSR guard: only run in browser
+  if (
+    typeof document === "undefined" ||
+    typeof document.querySelectorAll !== "function"
+  ) {
+    return;
+  }
+
   const elements = document.querySelectorAll(
     `${selector}:not([data-hydrated])`
   );
@@ -114,8 +149,14 @@ function hydrateAll(
 
 /**
  * Example usage for a component with specific props
+ * SSR-safe version
  */
 function hydrateYourComponent(): void {
+  // SSR guard: only run in browser
+  if (typeof window === "undefined") {
+    return;
+  }
+
   // TODO: Replace with your actual component
   const YourComponent = (window as any).YourComponent;
   if (!YourComponent) {
@@ -136,14 +177,16 @@ function hydrateYourComponent(): void {
   hydrateAll(".your-component-ssr-root", YourComponent, getProps);
 }
 
-// Auto-hydrate on DOM ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", hydrateYourComponent);
-} else {
-  if ("requestIdleCallback" in window) {
-    (window as any).requestIdleCallback(hydrateYourComponent);
+// Auto-hydrate on DOM ready (SSR-safe)
+if (typeof window !== "undefined" && typeof document !== "undefined") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", hydrateYourComponent);
   } else {
-    setTimeout(hydrateYourComponent, 0);
+    if ("requestIdleCallback" in window) {
+      (window as any).requestIdleCallback(hydrateYourComponent);
+    } else {
+      setTimeout(hydrateYourComponent, 0);
+    }
   }
 }
 
