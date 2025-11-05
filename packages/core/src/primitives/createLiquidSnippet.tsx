@@ -64,20 +64,10 @@ export function createLiquidSnippet<P extends Record<string, any>>(
 
     const escapedFirstPropName = firstPropName.replace(/'/g, "''");
 
-    // Build JSON using Liquid assigns to avoid literal double quotes in the expression
-    // Use {% capture %} to create quote character, avoiding HTML escaping issues
-    let liquidExpr = `{% capture _q %}x{% endcapture %}{% assign _q = _q | replace: 'x', '' | append: 'test' | replace: 'test', '' | append: 'x' | replace: 'x', '' | append: 34 | append: '' | slice: 0, 1 %}`;
-    // Actually, simpler: use a known string that contains quote and extract it
-    // Or: use Liquid's ability to output quote via json filter on a string
-    // Best: Use {% assign %} with a workaround that doesn't need literal quote
-    // Final: Use split on a string to extract quote character
-    liquidExpr = `{% assign _q = 'ab' | split: 'a' | last | split: 'b' | first | append: '' | replace: 'a', '' | replace: 'b', '' | append: 'x' | replace: 'x', '' | append: 34 | append: '' %}`;
-    // Actually, Liquid doesn't convert numbers to chars. Let's use a different approach:
-    // Use a string that we know will give us a quote when manipulated
-    liquidExpr = `{% assign _temp = 'a"b' %}{% assign _q = _temp | split: 'a' | last | split: 'b' | first %}`;
-    liquidExpr += `{% assign _json = '{' %}`;
-    liquidExpr += `{% assign _json = _json | append: _q | append: '${escapedFirstPropName}' | append: _q | append: ':' %}`;
-    liquidExpr += `{% assign _json = _json | append: (${firstLiquidVar}`;
+    // Build JSON using the same pattern as ProductCard - single quotes with double quotes inside
+    // Despite HTML escaping to &quot;, this pattern works because Liquid processes before HTML
+    // The key is that Liquid parses the source file, not the rendered HTML
+    let liquidExpr = `{{ '{"${firstPropName}":' | append: (${firstLiquidVar}`;
     if (firstDefault !== undefined) {
       const defaultStr =
         typeof firstDefault === "string"
@@ -85,7 +75,7 @@ export function createLiquidSnippet<P extends Record<string, any>>(
           : String(firstDefault);
       liquidExpr += ` | default: ${defaultStr}`;
     }
-    liquidExpr += ` | json | escape) %}`;
+    liquidExpr += ` | json | escape)`;
 
     for (let i = 1; i < propEntries.length; i++) {
       const [propName, mapping] = propEntries[i];
@@ -97,7 +87,7 @@ export function createLiquidSnippet<P extends Record<string, any>>(
           : undefined;
 
       const escapedPropName = String(propName).replace(/'/g, "''");
-      liquidExpr += `{% assign _json = _json | append: ',' | append: _q | append: '${escapedPropName}' | append: _q | append: ':' | append: (${liquidVar}`;
+      liquidExpr += ` | append: ',"${escapedPropName}":' | append: (${liquidVar}`;
       if (defaultValue !== undefined) {
         const defaultStr =
           typeof defaultValue === "string"
@@ -105,10 +95,10 @@ export function createLiquidSnippet<P extends Record<string, any>>(
             : String(defaultValue);
         liquidExpr += ` | default: ${defaultStr}`;
       }
-      liquidExpr += ` | json | escape) %}`;
+      liquidExpr += ` | json | escape)`;
     }
 
-    liquidExpr += `{% assign _json = _json | append: '}' %}{{ _json }}`;
+    liquidExpr += ` | append: '}' }}`;
 
     return (
       <div
