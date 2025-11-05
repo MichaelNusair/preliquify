@@ -71,86 +71,83 @@ export function createLiquidSnippet<P extends Record<string, any>>(
 
   // SSR wrapper that automatically handles props
   function ComponentSSR(props: P) {
-    const target = useTarget();
+    // This component is only used during SSR (build time)
+    // At runtime, hydration replaces it, so we always render the Liquid output
+    // We don't need to check useTarget() because this component is never used at runtime
+    // Build Liquid expression for data-preliq-props using append filter
+    const propEntries = Object.entries(propMapping);
 
-    if (target === "liquid") {
-      // Build Liquid expression for data-preliq-props using append filter
-      const propEntries = Object.entries(propMapping);
-
-      if (propEntries.length === 0) {
-        return (
-          <div
-            data-preliq-island={componentName}
-            data-preliq-id={id}
-            data-preliq-props={rawLiquid("{}")}
-          >
-            {placeholder}
-          </div>
-        );
-      }
-
-      // Build the Liquid expression: {{ '{"prop1":' | append: (var1 | json | escape) | append: ',"prop2":' | append: (var2 | json | escape) | append: '}' }}
-      const firstProp = propEntries[0];
-      const firstPropName = String(firstProp[0]);
-      const firstMapping = firstProp[1];
-      const firstLiquidVar =
-        typeof firstMapping === "string"
-          ? firstMapping
-          : firstMapping.liquidVar;
-      const firstDefault =
-        typeof firstMapping === "object" && "default" in firstMapping
-          ? firstMapping.default
-          : undefined;
-
-      let liquidExpr = `{{ '{"${firstPropName}":' | append: (${firstLiquidVar}`;
-      if (firstDefault !== undefined) {
-        const defaultStr =
-          typeof firstDefault === "string"
-            ? `"${firstDefault}"`
-            : String(firstDefault);
-        liquidExpr += ` | default: ${defaultStr}`;
-      }
-      liquidExpr += ` | json | escape)`;
-
-      // Add remaining props
-      for (let i = 1; i < propEntries.length; i++) {
-        const [propName, mapping] = propEntries[i];
-        const liquidVar =
-          typeof mapping === "string" ? mapping : mapping.liquidVar;
-        const defaultValue =
-          typeof mapping === "object" && "default" in mapping
-            ? mapping.default
-            : undefined;
-
-        liquidExpr += ` | append: ',"${String(propName)}":' | append: (${liquidVar}`;
-        if (defaultValue !== undefined) {
-          const defaultStr =
-            typeof defaultValue === "string"
-              ? `"${defaultValue}"`
-              : String(defaultValue);
-          liquidExpr += ` | default: ${defaultStr}`;
-        }
-        liquidExpr += ` | json | escape)`;
-      }
-
-      liquidExpr += ` | append: '}' }}`;
-
+    if (propEntries.length === 0) {
       return (
         <div
           data-preliq-island={componentName}
           data-preliq-id={id}
-          data-preliq-props={rawLiquid(liquidExpr)}
+          data-preliq-props={rawLiquid("{}")}
         >
           {placeholder}
         </div>
       );
     }
 
-    return null;
+    // Build the Liquid expression: {{ '{"prop1":' | append: (var1 | json | escape) | append: ',"prop2":' | append: (var2 | json | escape) | append: '}' }}
+    const firstProp = propEntries[0];
+    const firstPropName = String(firstProp[0]);
+    const firstMapping = firstProp[1];
+    const firstLiquidVar =
+      typeof firstMapping === "string" ? firstMapping : firstMapping.liquidVar;
+    const firstDefault =
+      typeof firstMapping === "object" && "default" in firstMapping
+        ? firstMapping.default
+        : undefined;
+
+    let liquidExpr = `{{ '{"${firstPropName}":' | append: (${firstLiquidVar}`;
+    if (firstDefault !== undefined) {
+      const defaultStr =
+        typeof firstDefault === "string"
+          ? `"${firstDefault}"`
+          : String(firstDefault);
+      liquidExpr += ` | default: ${defaultStr}`;
+    }
+    liquidExpr += ` | json | escape)`;
+
+    // Add remaining props
+    for (let i = 1; i < propEntries.length; i++) {
+      const [propName, mapping] = propEntries[i];
+      const liquidVar =
+        typeof mapping === "string" ? mapping : mapping.liquidVar;
+      const defaultValue =
+        typeof mapping === "object" && "default" in mapping
+          ? mapping.default
+          : undefined;
+
+      liquidExpr += ` | append: ',"${String(propName)}":' | append: (${liquidVar}`;
+      if (defaultValue !== undefined) {
+        const defaultStr =
+          typeof defaultValue === "string"
+            ? `"${defaultValue}"`
+            : String(defaultValue);
+        liquidExpr += ` | default: ${defaultStr}`;
+      }
+      liquidExpr += ` | json | escape)`;
+    }
+
+    liquidExpr += ` | append: '}' }}`;
+
+    return (
+      <div
+        data-preliq-island={componentName}
+        data-preliq-id={id}
+        data-preliq-props={rawLiquid(liquidExpr)}
+      >
+        {placeholder}
+      </div>
+    );
   }
 
   // Default export that maps Liquid variables to props
   function LiquidSnippet() {
+    // Always render ComponentSSR - it will handle target checking internally
+    // We build props with Liquid expressions here, which ComponentSSR will use
     const props: Partial<P> = {};
 
     for (const [propName, mapping] of Object.entries(propMapping)) {
@@ -172,6 +169,8 @@ export function createLiquidSnippet<P extends Record<string, any>>(
       }
     }
 
+    // Always render ComponentSSR - it checks useTarget() internally
+    // At build time, TargetProvider wraps this component, so useTarget() should return 'liquid'
     return <ComponentSSR {...(props as P)} />;
   }
 
