@@ -225,12 +225,18 @@ function initRuntime(): PreliquifyRuntime {
 const runtime = initRuntime();
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => hydrateIslands(runtime));
+  document.addEventListener("DOMContentLoaded", () => {
+    if (document.body) {
+      hydrateIslands(runtime);
+    }
+  });
 } else {
-  if ("requestIdleCallback" in window) {
-    (window as any).requestIdleCallback(() => hydrateIslands(runtime));
-  } else {
-    setTimeout(() => hydrateIslands(runtime), 0);
+  if (document.body) {
+    if ("requestIdleCallback" in window) {
+      (window as any).requestIdleCallback(() => hydrateIslands(runtime));
+    } else {
+      setTimeout(() => hydrateIslands(runtime), 0);
+    }
   }
 }
 
@@ -243,6 +249,11 @@ const Preliquify = {
   register(name: string, component: any): void {
     runtime.components.set(name, component);
     (window as any).__PRELIQUIFY__[name] = component;
+    // Trigger hydration when component registers (handles defer script timing)
+    // Safe to call multiple times - hydrate() skips already-hydrated islands
+    if (document.body) {
+      hydrateIslands(runtime);
+    }
   },
 
   hydrate(container?: Element): void {

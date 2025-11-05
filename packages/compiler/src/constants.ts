@@ -99,7 +99,11 @@ export const ESBUILD_RUNTIME_CONFIG: BuildOptions = {
 export const FALLBACK_RUNTIME = `
 (function(){
   window.__PRELIQUIFY__||(window.__PRELIQUIFY__={});
-  window.__PRELIQUIFY__.register=function(name,comp){window.__PRELIQUIFY__[name]=comp;};
+  window.__PRELIQUIFY__.register=function(name,comp){
+    window.__PRELIQUIFY__[name]=comp;
+    // Trigger hydration when component registers (handles defer script timing)
+    if(document.body&&window.__PRELIQUIFY__.hydrate)window.__PRELIQUIFY__.hydrate();
+  };
   window.__PRELIQUIFY__.hydrate=function(){
     var nodes=document.querySelectorAll('[data-preliq-island]');
     for(var i=0;i<nodes.length;i++){

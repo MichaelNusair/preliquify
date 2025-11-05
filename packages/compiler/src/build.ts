@@ -753,6 +753,12 @@ const componentName = Snippet.__preliquifyComponentName || '${componentName}';
         if (${verbose}) {
           console.log('[__PRELIQUIFY__] Registered:', '${componentName}');
         }
+        // Trigger hydration after registration (handles defer script timing)
+        // The register() function will trigger hydration, but this ensures it works
+        // even if runtime hasn't loaded yet (hydration will be triggered when runtime loads)
+        if (window.__PRELIQUIFY__.hydrate && document.body) {
+          window.__PRELIQUIFY__.hydrate();
+        }
         return;
       }
     }
