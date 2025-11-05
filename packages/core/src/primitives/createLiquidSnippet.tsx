@@ -64,9 +64,11 @@ export function createLiquidSnippet<P extends Record<string, any>>(
 
     const escapedFirstPropName = firstPropName.replace(/'/g, "''");
 
-    // Build JSON using single quotes with double quotes inside - same pattern as ProductCard
-    // Note: When HTML-escaped to &quot;, Liquid will still parse it correctly
-    let liquidExpr = `{{ '{"${firstPropName}":' | append: (${firstLiquidVar}`;
+    // Build JSON using Liquid assigns to avoid literal double quotes in the expression
+    // This prevents HTML escaping issues where " becomes &quot; and breaks Liquid parsing
+    let liquidExpr = `{% assign _json = '{' %}`;
+    liquidExpr += `{% assign _json = _json | append: '${escapedFirstPropName}' | append: ':' %}`;
+    liquidExpr += `{% assign _json = _json | append: (${firstLiquidVar}`;
     if (firstDefault !== undefined) {
       const defaultStr =
         typeof firstDefault === "string"
@@ -74,7 +76,7 @@ export function createLiquidSnippet<P extends Record<string, any>>(
           : String(firstDefault);
       liquidExpr += ` | default: ${defaultStr}`;
     }
-    liquidExpr += ` | json | escape)`;
+    liquidExpr += ` | json | escape) %}`;
 
     for (let i = 1; i < propEntries.length; i++) {
       const [propName, mapping] = propEntries[i];
@@ -86,7 +88,7 @@ export function createLiquidSnippet<P extends Record<string, any>>(
           : undefined;
 
       const escapedPropName = String(propName).replace(/'/g, "''");
-      liquidExpr += ` | append: ',"${escapedPropName}":' | append: (${liquidVar}`;
+      liquidExpr += `{% assign _json = _json | append: ',' | append: '${escapedPropName}' | append: ':' | append: (${liquidVar}`;
       if (defaultValue !== undefined) {
         const defaultStr =
           typeof defaultValue === "string"
@@ -94,10 +96,10 @@ export function createLiquidSnippet<P extends Record<string, any>>(
             : String(defaultValue);
         liquidExpr += ` | default: ${defaultStr}`;
       }
-      liquidExpr += ` | json | escape)`;
+      liquidExpr += ` | json | escape) %}`;
     }
 
-    liquidExpr += ` | append: '}' }}`;
+    liquidExpr += `{% assign _json = _json | append: '}' %}{{ _json }}`;
 
     return (
       <div
