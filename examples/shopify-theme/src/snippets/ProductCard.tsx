@@ -58,7 +58,9 @@ function ProductCardSSR(props: ProductCardProps) {
         )}
       >
         {/* Server-rendered HTML - will be replaced by hydrated component on client */}
-        <ProductCard {...props} />
+        {/* At build time, props are Liquid expression strings, so we can't render the component */}
+        {/* The hydration runtime will replace this placeholder with the actual component */}
+        <div className="product-card-placeholder">Loading product...</div>
       </div>
     );
   }

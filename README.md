@@ -174,7 +174,9 @@ function ProductCardSSR(props: ProductCardProps) {
         data-preliq-id="product-card"
         data-preliq-props={rawLiquid(`{{ '{"product":' | append: (product | json | escape) | append: '}' }}`)}
       >
-        <ProductCard {...props} />
+        {/* At build time, props are Liquid expression strings, so we use a placeholder */}
+        {/* The hydration runtime will replace this with the actual component */}
+        <div className="product-card-placeholder">Loading product...</div>
       </div>
     );
   }
@@ -247,9 +249,13 @@ function MyComponentSSR(props) {
   if (target === "liquid") {
     // Props are available here during build as strings
     // props.prop1 = "{{ product.metafields.key.value }}"
+    // NOTE: If YourComponent tries to process props (e.g., .map(), .filter(), etc.),
+    // it will fail at build time. Use a placeholder instead, or ensure your component
+    // handles string props gracefully.
     return (
       <div data-prop1={rawLiquid(props.prop1)}>
-        <YourComponent {...props} />
+        {/* Placeholder - hydration runtime will replace this */}
+        <div>Loading...</div>
       </div>
     );
   }
@@ -286,6 +292,25 @@ export default function ProductCardSnippet() {
 Parameter names must match: `{% render 'Card', product: product %}` → use `{{ product }}` in component.
 
 The hydration runtime automatically reads `data-preliq-props` from the DOM and passes parsed props to your Preact component. Always pipe Liquid variables through `json` and `escape` filters when storing in data attributes.
+
+**Important**: At build time, props passed to your SSR wrapper are Liquid expression strings (like `"{{ product | json | escape }}"`). If your component tries to process these as data (e.g., calling `.map()` on an array prop), it will fail at build time. Use a placeholder in your SSR wrapper instead:
+
+```tsx
+function MyComponentSSR(props) {
+  const target = useTarget();
+  if (target === "liquid") {
+    return (
+      <div data-preliq-island="MyComponent" data-preliq-props={...}>
+        {/* Placeholder - hydration runtime replaces this */}
+        <div>Loading...</div>
+      </div>
+    );
+  }
+  return null;
+}
+```
+
+The hydration runtime will replace the placeholder with your actual component once it reads and parses the props from the DOM.
 
 ## SSR Compatibility
 
