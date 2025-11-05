@@ -174,6 +174,8 @@ const buildOptions = {
   jsxImportSource: flags.jsxImportSource ?? cfg.jsxImportSource ?? "preact",
   watch: flags.watch || !!cfg.watch,
   verbose: flags.verbose || !!cfg.verbose,
+  suffixDistFiles:
+    cfg.suffixDistFiles !== undefined ? cfg.suffixDistFiles : true,
 };
 
 console.log("\n🚀 Starting PreLiquify build...\n");
@@ -183,7 +185,10 @@ if (flags.verbose) {
   console.log(`  Liquid output: ${buildOptions.outLiquidDir}`);
   console.log(`  Client output: ${buildOptions.outClientDir}`);
   console.log(`  JSX import source: ${buildOptions.jsxImportSource}`);
-  console.log(`  Watch mode: ${buildOptions.watch ? "enabled" : "disabled"}\n`);
+  console.log(`  Watch mode: ${buildOptions.watch ? "enabled" : "disabled"}`);
+  console.log(
+    `  Suffix dist files: ${buildOptions.suffixDistFiles ? "enabled" : "disabled"}\n`
+  );
 }
 
 try {

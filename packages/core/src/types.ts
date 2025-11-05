@@ -57,6 +57,8 @@ export interface PreliquifyConfig {
   watch?: boolean;
   /** Enable verbose logging */
   verbose?: boolean;
+  /** Suffix all dist files (liquid and js) with -prlq (default: true) */
+  suffixDistFiles?: boolean;
 }
 
 /**

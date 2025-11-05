@@ -276,8 +276,41 @@ function createBrowserPolyfills() {
   `;
 }
 
+/**
+ * Helper function to apply -prlq suffix to filename if suffixDistFiles is true
+ * Examples:
+ * - "Component.liquid" -> "Component-prlq.liquid" (if suffixDistFiles is true)
+ * - "preliquify.runtime.js" -> "preliquify-prlq.runtime.js" (if suffixDistFiles is true)
+ */
+function applySuffixIfNeeded(
+  filename: string,
+  suffixDistFiles: boolean
+): string {
+  if (!suffixDistFiles) {
+    return filename;
+  }
+
+  // Insert -prlq before the first dot (extension)
+  // This way "preliquify.runtime.js" becomes "preliquify-prlq.runtime.js"
+  const firstDotIndex = filename.indexOf(".");
+  if (firstDotIndex === -1) {
+    return `${filename}-prlq`;
+  }
+
+  const nameWithoutExt = filename.slice(0, firstDotIndex);
+  const ext = filename.slice(firstDotIndex);
+  return `${nameWithoutExt}-prlq${ext}`;
+}
+
 export async function build(opts: BuildOptions) {
-  const { srcDir, outLiquidDir, outClientDir, watch, verbose = false } = opts;
+  const {
+    srcDir,
+    outLiquidDir,
+    outClientDir,
+    watch,
+    verbose = false,
+    suffixDistFiles = true,
+  } = opts;
   const errorReporter = createErrorReporter(verbose);
 
   let entries: string[];
@@ -395,10 +428,15 @@ export async function build(opts: BuildOptions) {
             // Skip writing empty liquid files - only write if there's actual content
             const trimmedLiquid = liquid.trim();
             if (trimmedLiquid) {
-              const outPath = join(
-                outLiquidDir,
-                basename(file).replace(/\.tsx$/, ".liquid")
+              const liquidFilename = basename(file).replace(
+                /\.tsx$/,
+                ".liquid"
               );
+              const finalFilename = applySuffixIfNeeded(
+                liquidFilename,
+                suffixDistFiles
+              );
+              const outPath = join(outLiquidDir, finalFilename);
               await fs.writeFile(outPath, liquid, "utf8");
             }
             // If liquid is empty/whitespace, silently skip - don't create the file
@@ -457,7 +495,11 @@ export async function build(opts: BuildOptions) {
         new URL("../src/runtime/client-runtime.ts", import.meta.url)
       );
 
-      const runtimeOutPath = join(outClientDir, "preliquify.runtime.js");
+      const runtimeFilename = applySuffixIfNeeded(
+        "preliquify.runtime.js",
+        suffixDistFiles
+      );
+      const runtimeOutPath = join(outClientDir, runtimeFilename);
 
       try {
         await esbuild({
@@ -545,7 +587,7 @@ async function startWatchMode(
   opts: BuildOptions,
   errorReporter: ReturnType<typeof createErrorReporter>
 ) {
-  const { srcDir, outLiquidDir, verbose } = opts;
+  const { srcDir, outLiquidDir, verbose, suffixDistFiles = true } = opts;
 
   console.log("\n👀 Starting watch mode...");
   console.log(`   Watching: ${srcDir}`);
@@ -588,10 +630,12 @@ async function startWatchMode(
       console.log(`\n🗑️  Removed: ${path}`);
 
       // Remove corresponding .liquid file
-      const liquidFile = join(
-        outLiquidDir,
-        basename(path).replace(/\.tsx$/, ".liquid")
+      const liquidFilename = basename(path).replace(/\.tsx$/, ".liquid");
+      const finalFilename = applySuffixIfNeeded(
+        liquidFilename,
+        suffixDistFiles
       );
+      const liquidFile = join(outLiquidDir, finalFilename);
 
       try {
         await fs.unlink(liquidFile);
