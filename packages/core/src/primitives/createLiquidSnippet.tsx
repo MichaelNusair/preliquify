@@ -3,30 +3,114 @@ import { useTarget } from "../runtime.js";
 import { rawLiquid } from "../liquid.js";
 import type { ComponentType } from "preact";
 
-// Helper to check if a value is a Liquid expression string
-function isLiquidExpression(value: any): boolean {
+/**
+ * Helper to check if a value is a Liquid expression string
+ * @internal
+ */
+function isLiquidExpression(value: unknown): boolean {
   return (
     typeof value === "string" && (value.includes("{{") || value.includes("{%"))
   );
 }
 
+/**
+ * Mapping configuration for component props to Liquid variables
+ *
+ * Can be either:
+ * - A string: The Liquid variable name (e.g., "product" maps to `{{ product }}`)
+ * - An object with `liquidVar` and optional `default` value
+ */
 type PropMapping =
   | string // Liquid variable name (same as prop name)
   | {
-      liquidVar: string; // Liquid variable name
-      default?: any; // Default value if not provided
+      /** The Liquid variable name to map from */
+      liquidVar: string;
+      /** Default value if the Liquid variable is undefined/null */
+      default?: unknown;
     };
 
+/**
+ * Options for configuring the Liquid snippet wrapper
+ */
 interface CreateLiquidSnippetOptions {
   /** Component name for hydration (defaults to component displayName or name) */
   componentName?: string;
   /** ID for the hydration island (defaults to component name in kebab-case) */
   id?: string;
   /** Placeholder content shown at build time (defaults to "Loading...") */
-  placeholder?: any;
+  placeholder?: unknown;
 }
 
-export function createLiquidSnippet<P extends Record<string, any>>(
+/**
+ * Creates a Liquid snippet wrapper for a Preact component
+ *
+ * This is the recommended way to create components that accept props from Liquid.
+ * It handles the mapping between Liquid variables and component props, and sets up
+ * client-side hydration automatically.
+ *
+ * @template P - The component's prop types
+ * @param Component - The Preact component to wrap
+ * @param propMapping - Mapping of prop names to Liquid variables
+ * @param options - Optional configuration for the snippet
+ * @returns A wrapped component that can be compiled to Liquid
+ *
+ * @example
+ * Basic usage with simple prop mapping:
+ * ```tsx
+ * interface ProductCardProps {
+ *   product: any;
+ *   showPrice: boolean;
+ * }
+ *
+ * function ProductCard({ product, showPrice }: ProductCardProps) {
+ *   return (
+ *     <div className="product-card">
+ *       <h3>{product.title}</h3>
+ *       {showPrice && <p>${product.price}</p>}
+ *     </div>
+ *   );
+ * }
+ *
+ * export default createLiquidSnippet(ProductCard, {
+ *   product: "product",  // Maps to {{ product }}
+ *   showPrice: "showPrice",  // Maps to {{ showPrice }}
+ * });
+ * ```
+ *
+ * @example
+ * With default values:
+ * ```tsx
+ * export default createLiquidSnippet(ProductCard, {
+ *   product: "product",
+ *   showPrice: {
+ *     liquidVar: "showPrice",
+ *     default: true,  // Default to true if not provided
+ *   },
+ * });
+ * ```
+ *
+ * @example
+ * With custom component name and placeholder:
+ * ```tsx
+ * export default createLiquidSnippet(ProductCard, propMapping, {
+ *   componentName: "MyProductCard",
+ *   id: "product-card",
+ *   placeholder: <div className="skeleton">Loading product...</div>,
+ * });
+ * ```
+ *
+ * @remarks
+ * Usage in Shopify Liquid:
+ * ```liquid
+ * {% render 'ProductCard', product: product, showPrice: true %}
+ * ```
+ *
+ * The component will:
+ * 1. Render the placeholder at build time to avoid SSR errors
+ * 2. Hydrate on the client with the actual props
+ * 3. Replace the placeholder with the fully interactive component
+ */
+export function createLiquidSnippet<P extends Record<string, unknown>>(
   Component: ComponentType<P>,
   propMapping: Record<keyof P, PropMapping>,
   options: CreateLiquidSnippetOptions = {}
@@ -150,11 +234,11 @@ export function createLiquidSnippet<P extends Record<string, any>>(
       if (defaultValue !== undefined) {
         props[propName as keyof P] = rawLiquid(
           `{{ ${liquidVar} | default: ${typeof defaultValue === "string" ? `"${defaultValue}"` : defaultValue} | json | escape }}`
-        ) as any;
+        ) as P[keyof P];
       } else {
         props[propName as keyof P] = rawLiquid(
           `{{ ${liquidVar} | json | escape }}`
-        ) as any;
+        ) as P[keyof P];
       }
     }
 

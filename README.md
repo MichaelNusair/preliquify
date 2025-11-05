@@ -218,6 +218,15 @@ if (typeof window !== 'undefined') {
 }
 ```
 
+## Documentation
+
+For detailed documentation, see the [docs](./docs/) folder:
+
+- **[Getting Started](./docs/getting-started.md)** - Installation and quick start guide
+- **[Primitives](./docs/primitives.md)** - Complete guide to Liquid primitives
+- **[Best Practices](./docs/best-practices.md)** - Guidelines for maintainable code
+- **[API Reference](./docs/README.md)** - Full API documentation
+
 ## Development
 
 ```bash
@@ -229,8 +238,47 @@ pnpm build
 
 # Run tests
 pnpm test
+
+# Run linter
+pnpm lint
+
+# Format code
+pnpm format
 ```
+
+### Contributing
+
+We welcome contributions! Please read our [Contributing Guide](./CONTRIBUTING.md) for details on:
+
+- Development workflow
+- Code style guidelines
+- Testing requirements
+- Pull request process
+
+### Project Structure
+
+```
+preliquify/
+├── packages/
+│   ├── cli/          # Command-line interface
+│   ├── compiler/     # Core compiler logic
+│   ├── core/         # Primitives and utilities
+│   └── preact/       # Preact-specific bindings
+├── docs/            # Documentation
+├── examples/        # Example projects
+└── test/           # Shared test utilities
+```
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for version history and changes.
 
 ## License
 
 MIT
+
+---
+
+**Made with ❤️ for Shopify theme developers**
+
+For questions, issues, or feature requests, please visit our [GitHub Issues](https://github.com/MichaelNusair/preliquify/issues).

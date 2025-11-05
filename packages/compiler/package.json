@@ -3,14 +3,29 @@
   "private": false,
   "license": "MIT",
   "author": "Preliquify",
+  "description": "Compiler for transforming React/Preact components to Shopify Liquid templates",
+  "homepage": "https://github.com/MichaelNusair/preliquify#readme",
+  "keywords": [
+    "preliquify",
+    "compiler",
+    "shopify",
+    "liquid",
+    "jsx",
+    "tsx",
+    "transpiler"
+  ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/MichaelNusair/preliquify"
+    "url": "https://github.com/MichaelNusair/preliquify",
+    "directory": "packages/compiler"
   },
   "bugs": {
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
-  "version": "0.2.1",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
