@@ -69,7 +69,8 @@ export function createLiquidSnippet<P extends Record<string, any>>(
     let liquidExpr = `{% assign _q = 'a"b' | split: 'a' | last | split: 'b' | first %}`;
     liquidExpr += `{% assign _json = '{' %}`;
     liquidExpr += `{% assign _json = _json | append: _q | append: '${escapedFirstPropName}' | append: _q | append: ':' %}`;
-    liquidExpr += `{% assign _json = _json | append: (${firstLiquidVar}`;
+    // Assign the filtered value first, then append it (append filter doesn't accept filter chains)
+    liquidExpr += `{% assign _val = ${firstLiquidVar}`;
     if (firstDefault !== undefined) {
       const defaultStr =
         typeof firstDefault === "string"
@@ -77,7 +78,8 @@ export function createLiquidSnippet<P extends Record<string, any>>(
           : String(firstDefault);
       liquidExpr += ` | default: ${defaultStr}`;
     }
-    liquidExpr += ` | json | escape) %}`;
+    liquidExpr += ` | json | escape %}`;
+    liquidExpr += `{% assign _json = _json | append: _val %}`;
 
     for (let i = 1; i < propEntries.length; i++) {
       const [propName, mapping] = propEntries[i];
@@ -89,7 +91,9 @@ export function createLiquidSnippet<P extends Record<string, any>>(
           : undefined;
 
       const escapedPropName = String(propName).replace(/'/g, "''");
-      liquidExpr += `{% assign _json = _json | append: ',' | append: _q | append: '${escapedPropName}' | append: _q | append: ':' | append: (${liquidVar}`;
+      liquidExpr += `{% assign _json = _json | append: ',' | append: _q | append: '${escapedPropName}' | append: _q | append: ':' %}`;
+      // Assign the filtered value first, then append it
+      liquidExpr += `{% assign _val = ${liquidVar}`;
       if (defaultValue !== undefined) {
         const defaultStr =
           typeof defaultValue === "string"
@@ -97,7 +101,8 @@ export function createLiquidSnippet<P extends Record<string, any>>(
             : String(defaultValue);
         liquidExpr += ` | default: ${defaultStr}`;
       }
-      liquidExpr += ` | json | escape) %}`;
+      liquidExpr += ` | json | escape %}`;
+      liquidExpr += `{% assign _json = _json | append: _val %}`;
     }
 
     liquidExpr += `{% assign _json = _json | append: '}' %}{{ _json }}`;
