@@ -765,6 +765,8 @@ const componentName = Snippet.__preliquifyComponentName || '${componentName}';
             await fs.writeFile(wrapperPath, wrapperContent, "utf8");
 
             // Bundle the component with auto-registration
+            // Bundle all dependencies including @preliquify and preact
+            // This creates self-contained bundles that work in browser
             await esbuild({
               entryPoints: [wrapperPath],
               bundle: true,
@@ -772,10 +774,11 @@ const componentName = Snippet.__preliquifyComponentName || '${componentName}';
               format: "iife",
               target: "es2020",
               minify: opts.minify !== false,
-              external: [...EXTERNAL_PACKAGES],
+              external: [], // Bundle everything for browser
               platform: "browser",
               jsx: "automatic",
               jsxImportSource: opts.jsxImportSource || "preact",
+              globalName: `__PreliquifyBundle_${componentName}`,
             });
 
             bundleCount++;

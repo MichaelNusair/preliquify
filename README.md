@@ -64,8 +64,6 @@ pnpm preliquify build
 
 ```liquid
 <!-- theme.liquid -->
-<script src="https://unpkg.com/preact@10/dist/preact.umd.js"></script>
-<script>window.preact = { h: preactUmd.h, render: preactUmd.render };</script>
 <script src="{{ 'preliquify-prlq.runtime.js' | asset_url }}" defer></script>
 <script src="{{ 'ProductCard-prlq.bundle.js' | asset_url }}" defer></script>
 ```
