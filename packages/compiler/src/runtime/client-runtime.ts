@@ -234,7 +234,12 @@ if (document.readyState === "loading") {
   }
 }
 
-export const Preliquify = {
+// Initialize window.__PRELIQUIFY__ first
+if (!(window as any).__PRELIQUIFY__) {
+  (window as any).__PRELIQUIFY__ = {};
+}
+
+const Preliquify = {
   register(name: string, component: any): void {
     runtime.components.set(name, component);
     (window as any).__PRELIQUIFY__[name] = component;
@@ -285,4 +290,5 @@ export const Preliquify = {
   },
 };
 
-(window as any).__PRELIQUIFY__ = Preliquify;
+// Expose all methods on window.__PRELIQUIFY__
+Object.assign((window as any).__PRELIQUIFY__, Preliquify);
