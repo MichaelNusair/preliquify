@@ -1,5 +1,25 @@
 export type BuildOptions = {
-  srcDir: string; // e.g., "<theme>/src/snippets"
+  /**
+   * Entry point(s) for compilation. Can be:
+   * - A directory path to scan (e.g., "./src/snippets")
+   * - A glob pattern (e.g., "./src/snippets/**‎/*.tsx")
+   * - An array of files/directories/patterns
+   *
+   * Only files containing `createLiquidSnippet` will be compiled to .liquid files.
+   * Other files are used as library components and bundled into entry points.
+   *
+   * @example
+   * entryPoint: "./src/snippets"  // Scan directory
+   * entryPoint: ["./src/MediaGallery.tsx", "./src/ProductCard.tsx"]  // Specific files
+   * entryPoint: "./src/**‎/*.snippet.tsx"  // Pattern matching
+   */
+  entryPoint: string | string[];
+
+  /**
+   * @deprecated Use `entryPoint` instead. This will be removed in v2.0.0
+   */
+  srcDir?: string;
+
   outLiquidDir: string; // e.g., "<theme>/snippets"
   outClientDir: string; // e.g., "<theme>/assets"
   jsxImportSource?: string; // default: "preact"

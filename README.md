@@ -20,13 +20,16 @@ yarn add -D @preliquify/cli
 import type { PreliquifyConfig } from "@preliquify/cli";
 
 const config: PreliquifyConfig = {
-  srcDir: "src/snippets",
+  entryPoint: "src/snippets", // Directory to scan for snippets
   outLiquidDir: "snippets",
   outClientDir: "assets",
 };
 
 export default config;
 ```
+
+**Note**: Only files using `createLiquidSnippet` are compiled to `.liquid` files.
+Other files are automatically bundled as library components.
 
 2. **Write a component** (`src/snippets/ProductCard.tsx`):
 

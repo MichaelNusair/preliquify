@@ -20,8 +20,19 @@
  * PreLiquify configuration options
  */
 export interface PreliquifyConfig {
-  /** Source directory for components */
+  /**
+   * Entry point(s) for compilation. Can be:
+   * - A directory path to scan (e.g., "./src/snippets")
+   * - A glob pattern (e.g., "./src/snippets.tsx")
+   * - An array of files/directories/patterns
+   * 
+   * Only files containing createLiquidSnippet will be compiled to .liquid files.
+   */
+  entryPoint?: string | string[];
+  
+  /** @deprecated Use `entryPoint` instead. Will be removed in v2.0.0 */
   srcDir?: string;
+  
   /** Output directory for Liquid templates */
   outLiquidDir?: string;
   /** Output directory for client assets */
