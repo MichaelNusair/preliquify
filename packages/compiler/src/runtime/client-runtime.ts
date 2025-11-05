@@ -11,13 +11,6 @@ interface PreliquifyRuntime {
   debug: boolean;
 }
 
-declare global {
-  interface Window {
-    Preliquify: Record<string, any>;
-    __preliquifyRuntime: PreliquifyRuntime;
-  }
-}
-
 function safeHydrate(
   element: Element,
   Component: any,
@@ -202,8 +195,8 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
 }
 
 function initRuntime(): PreliquifyRuntime {
-  if (window.__preliquifyRuntime) {
-    return window.__preliquifyRuntime;
+  if ((window as any).__preliquifyRuntime) {
+    return (window as any).__preliquifyRuntime;
   }
 
   const runtime: PreliquifyRuntime = {
@@ -213,7 +206,7 @@ function initRuntime(): PreliquifyRuntime {
     debug: (window as any).__PRELIQUIFY_DEBUG__ || false,
   };
 
-  window.__preliquifyRuntime = runtime;
+  (window as any).__preliquifyRuntime = runtime;
 
   if (!(window as any).__PRELIQUIFY__) {
     (window as any).__PRELIQUIFY__ = {};
