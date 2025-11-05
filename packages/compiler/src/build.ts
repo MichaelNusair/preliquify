@@ -740,7 +740,7 @@ const componentName = Snippet.__preliquifyComponentName || '${componentName}';
         window.__PRELIQUIFY__.register(componentName, Component);
         registered = true;
         if (${verbose}) {
-          console.log('[Preliquify] Registered component:', componentName);
+          console.log('[__PRELIQUIFY__] Registered:', componentName);
         }
         return;
       }
