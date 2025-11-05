@@ -37,7 +37,10 @@ export interface ConditionalProps {
 export interface ForProps<T> {
   each: Expr<T[]>;
   as: string;
-  children: JSX.Element | JSX.Element[];
+  children:
+    | JSX.Element
+    | JSX.Element[]
+    | ((item: T, index: number) => JSX.Element);
 }
 
 /**
