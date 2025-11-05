@@ -114,6 +114,9 @@ export function createLiquidSnippet<P extends Record<string, any>>(
 
     liquidExpr += `{% assign _json = _json | append: '}' %}{{ _json }}`;
 
+    // At build time (liquid target), always render placeholder to avoid errors
+    // Components that use .map() or other JS methods will fail with Liquid expression strings
+    // Client-side hydration will replace the placeholder with the actual component
     const target = useTarget();
     if (target === "liquid") {
       return (
@@ -123,12 +126,13 @@ export function createLiquidSnippet<P extends Record<string, any>>(
             data-preliq-props=""
             dangerouslySetInnerHTML={{ __html: rawLiquid(liquidExpr) }}
           />
-          <Component {...props} />
+          {placeholder}
         </div>
       );
     }
 
-    // During client-side rendering, render the component normally
+    // During client-side rendering (hydration), render the actual component
+    // Props are now actual data (not Liquid expression strings), so it's safe
     return <Component {...props} />;
   }
 
