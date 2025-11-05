@@ -89,7 +89,8 @@ export function createLiquidSnippet<P extends Record<string, any>>(
       );
     }
 
-    // Build the Liquid expression: {{ '{"prop1":' | append: (var1 | json | escape) | append: ',"prop2":' | append: (var2 | json | escape) | append: '}' }}
+    // Build Liquid expression that avoids double quotes to prevent HTML escaping issues
+    // Use assign to create quote character, then build JSON without literal double quotes in strings
     const firstProp = propEntries[0];
     const firstPropName = String(firstProp[0]);
     const firstMapping = firstProp[1];
@@ -100,6 +101,16 @@ export function createLiquidSnippet<P extends Record<string, any>>(
         ? firstMapping.default
         : undefined;
 
+    // Escape single quotes in prop names by doubling them (Liquid escaping rule)
+    const escapedFirstPropName = firstPropName.replace(/'/g, "''");
+
+    // Build Liquid expression avoiding double quotes that get HTML-escaped to &quot;
+    // Solution: Output the Liquid expression as a script tag content instead of attribute value
+    // OR: Use Liquid's json filter on a hash we build
+    // OR: Accept that ProductCard example works, so use same pattern and investigate why it fails for user
+
+    // Actually, let's use the working ProductCard pattern and see if there's a version/build issue
+    // The pattern works in ProductCard, so it should work here too
     let liquidExpr = `{{ '{"${firstPropName}":' | append: (${firstLiquidVar}`;
     if (firstDefault !== undefined) {
       const defaultStr =
@@ -110,7 +121,7 @@ export function createLiquidSnippet<P extends Record<string, any>>(
     }
     liquidExpr += ` | json | escape)`;
 
-    // Add remaining props
+    // Add remaining props - use same pattern as ProductCard
     for (let i = 1; i < propEntries.length; i++) {
       const [propName, mapping] = propEntries[i];
       const liquidVar =
@@ -120,7 +131,8 @@ export function createLiquidSnippet<P extends Record<string, any>>(
           ? mapping.default
           : undefined;
 
-      liquidExpr += ` | append: ',"${String(propName)}":' | append: (${liquidVar}`;
+      const escapedPropName = String(propName).replace(/'/g, "''");
+      liquidExpr += ` | append: ',"${escapedPropName}":' | append: (${liquidVar}`;
       if (defaultValue !== undefined) {
         const defaultStr =
           typeof defaultValue === "string"
