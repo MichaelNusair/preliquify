@@ -396,8 +396,32 @@ export async function build(opts: BuildOptions) {
               errorMessage.includes(msg)
             );
 
+            // Detect common Liquid expression errors
+            const liquidExpressionErrors = [
+              { pattern: /\.map is not a function/i, fix: "Use <For /> primitive instead of .map() for Liquid collections" },
+              { pattern: /\.filter is not a function/i, fix: "Use <Conditional /> or <Choose /> with Liquid expressions instead of .filter()" },
+              { pattern: /\.reduce is not a function/i, fix: "Use Liquid filters or <For /> with accumulation instead of .reduce()" },
+              { pattern: /\.forEach is not a function/i, fix: "Use <For /> primitive instead of .forEach() for Liquid collections" },
+              { pattern: /\.length/i, fix: "Use Liquid's 'size' filter or render conditionally with <Conditional />" },
+            ];
+            
+            const liquidError = liquidExpressionErrors.find(({ pattern }) =>
+              pattern.test(errorMessage)
+            );
+
             if (!isMissingComponentError) {
-              if (isBrowserAPIError && verbose) {
+              if (liquidError) {
+                const enhancedError = new CompilationError(
+                  `${errorMessage}\n\n💡 Fix: ${liquidError.fix}\n\n   At build time, props are Liquid expression strings (e.g., "{{ media | json }}").\n   You cannot use JavaScript array methods (.map(), .filter(), etc.) on them.\n\n   Solution: Use Preliquify primitives for Liquid data:\n   - Use <For each={$.var('media')} as="item"> for loops\n   - Use <Conditional when={$.var('condition')}> for conditionals\n   - Use useTarget() to detect build time vs runtime\n\n   Example:\n     import { For, $ } from '@preliquify/preact';\n     <For each={$.var('media')} as="item">\n       <div>{{ item.title }}</div>\n     </For>\n\n   See: https://github.com/your-repo/docs#liquid-primitives`,
+                  file,
+                  error,
+                  {
+                    hint: liquidError.fix,
+                    type: "liquid_expression_error",
+                  }
+                );
+                errorReporter.report(enhancedError);
+              } else if (isBrowserAPIError && verbose) {
                 console.warn(
                   `⚠️  Browser API warning in ${basename(file)}: ${errorMessage}\n   This may be handled by SSR polyfills.`
                 );
