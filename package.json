@@ -29,7 +29,7 @@
     "node": "20.*",
     "pnpm": "^9.5.*"
   },
-  "version": "1.1.17",
+  "version": "1.1.18",
   "workspaces": [
     "packages/*",
     "examples/*"
