@@ -10,7 +10,7 @@
   "bugs": {
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
-  "version": "0.1.43",
+  "version": "0.1.44",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
