@@ -61,7 +61,6 @@ jobs:
         run: pnpm publish-all-packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          VERSION_BUMP: ${{ github.event.inputs.version || 'patch' }}
 
       - name: Push changes
         run: |
