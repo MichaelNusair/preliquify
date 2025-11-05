@@ -64,7 +64,9 @@ export function createLiquidSnippet<P extends Record<string, any>>(
 
     const escapedFirstPropName = firstPropName.replace(/'/g, "''");
 
-    let liquidExpr = `{{ '{"${firstPropName}":' | append: (${firstLiquidVar}`;
+    // Use {% capture %} to create quote character without literal double quotes
+    // This avoids HTML escaping issues where " becomes &quot; and breaks Liquid parsing
+    let liquidExpr = `{% capture q %}"{% endcapture %}{{ '{' | append: q | append: '${escapedFirstPropName}' | append: q | append: ':' | append: (${firstLiquidVar}`;
     if (firstDefault !== undefined) {
       const defaultStr =
         typeof firstDefault === "string"
@@ -84,7 +86,7 @@ export function createLiquidSnippet<P extends Record<string, any>>(
           : undefined;
 
       const escapedPropName = String(propName).replace(/'/g, "''");
-      liquidExpr += ` | append: ',"${escapedPropName}":' | append: (${liquidVar}`;
+      liquidExpr += ` | append: ',' | append: q | append: '${escapedPropName}' | append: q | append: ':' | append: (${liquidVar}`;
       if (defaultValue !== undefined) {
         const defaultStr =
           typeof defaultValue === "string"
