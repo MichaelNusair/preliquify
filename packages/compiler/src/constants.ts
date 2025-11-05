@@ -10,6 +10,8 @@ export const EXTERNAL_PACKAGES = [
   "preact",
   "preact/hooks",
   "preact-render-to-string",
+  "@preliquify/core",
+  "@preliquify/preact",
 ] as const;
 
 /**

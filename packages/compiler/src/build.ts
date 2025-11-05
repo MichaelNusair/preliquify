@@ -55,60 +55,91 @@ async function findProjectRoot(startPath: string): Promise<string | null> {
  * @param projectRoot - Project root directory
  * @param tmpDir - Temporary directory path
  * @param externalPackages - List of external package names to symlink
+ * @param verbose - Whether to log verbose output
  */
 async function setupTempNodeModules(
   projectRoot: string,
   tmpDir: string,
-  externalPackages: string[]
+  externalPackages: string[],
+  verbose = false
 ): Promise<void> {
   const tmpNodeModules = join(tmpDir, "node_modules");
   await fs.mkdir(tmpNodeModules, { recursive: true });
 
   const projectRequire = createRequire(join(projectRoot, "package.json"));
 
-  const basePackages = new Set<string>();
+  // Handle each package separately (including scoped packages)
   for (const pkg of externalPackages) {
-    basePackages.add(pkg.split("/")[0]);
-  }
-
-  for (const basePkg of basePackages) {
     try {
-      const resolvedPath = projectRequire.resolve(basePkg);
-
-      let current = dirname(resolvedPath);
       let actualPkgDir: string | null = null;
 
-      while (current !== dirname(current)) {
-        try {
-          const pkgJsonPath = join(current, "package.json");
-          await fs.access(pkgJsonPath);
-          const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf8");
-          const pkgJson = JSON.parse(pkgJsonContent);
+      // Try multiple resolution strategies
+      try {
+        // Strategy 1: Use require.resolve for packages without strict exports
+        const resolvedPath = projectRequire.resolve(pkg);
+        let current = dirname(resolvedPath);
 
-          if (pkgJson.name === basePkg) {
-            actualPkgDir = current;
-            break;
-          }
-        } catch {}
+        // Walk up to find the package root directory
+        while (current !== dirname(current)) {
+          try {
+            const pkgJsonPath = join(current, "package.json");
+            await fs.access(pkgJsonPath);
+            const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf8");
+            const pkgJson = JSON.parse(pkgJsonContent);
 
-        if (
-          basename(current) === basePkg &&
-          basename(dirname(current)) === "node_modules"
-        ) {
-          actualPkgDir = current;
-          break;
+            if (pkgJson.name === pkg) {
+              actualPkgDir = current;
+              break;
+            }
+          } catch {}
+
+          current = dirname(current);
         }
 
-        current = dirname(current);
+        if (!actualPkgDir) {
+          actualPkgDir = dirname(resolvedPath);
+        }
+      } catch {
+        // Strategy 2: For preliquify packages in monorepo, use workspace packages
+        if (pkg.startsWith("@preliquify/")) {
+          const pkgName = pkg.replace("@preliquify/", "");
+          const workspacePkgDir = join(projectRoot, "packages", pkgName);
+          try {
+            await fs.access(join(workspacePkgDir, "package.json"));
+            actualPkgDir = workspacePkgDir;
+          } catch {}
+        }
+
+        // Strategy 3: Look in node_modules directly
+        if (!actualPkgDir) {
+          const nodeModulesPkgDir = join(projectRoot, "node_modules", pkg);
+          try {
+            await fs.access(join(nodeModulesPkgDir, "package.json"));
+            actualPkgDir = nodeModulesPkgDir;
+          } catch {}
+        }
       }
 
       if (!actualPkgDir) {
-        actualPkgDir = dirname(resolvedPath);
+        throw new Error(`Could not find package directory for ${pkg}`);
       }
 
-      await createSymlink(actualPkgDir, tmpNodeModules, basePkg);
+      // For scoped packages, ensure the scope directory exists
+      if (pkg.startsWith("@")) {
+        const scope = pkg.split("/")[0];
+        const scopeDir = join(tmpNodeModules, scope);
+        await fs.mkdir(scopeDir, { recursive: true });
+      }
+
+      await createSymlink(actualPkgDir, tmpNodeModules, pkg);
+      if (verbose) {
+        console.log(`  ✓ Symlinked ${pkg} from ${actualPkgDir}`);
+      }
     } catch (error) {
-      // Silently continue if package symlink fails - non-critical
+      // Log errors for preliquify packages as they're critical
+      if (pkg.startsWith("@preliquify/")) {
+        console.warn(`⚠️  Failed to symlink ${pkg}:`, error);
+      }
     }
   }
 }
@@ -359,7 +390,12 @@ export async function build(opts: BuildOptions) {
     );
   }
 
-  await setupTempNodeModules(projectRoot, tmpDir, [...EXTERNAL_PACKAGES]);
+  await setupTempNodeModules(
+    projectRoot,
+    tmpDir,
+    [...EXTERNAL_PACKAGES],
+    verbose
+  );
 
   const originalNodePath = process.env.NODE_PATH;
   const projectNodeModules = join(projectRoot, "node_modules");

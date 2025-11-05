@@ -1,1 +1,1 @@
-<section></section>
+<section>{% if customer.tags contains &quot;vip&quot; %}<p>{{ &quot;Welcome back, VIP!&quot; }}</p>{% endif %}{% for p in collections.frontpage.products %}<div><strong>{{ p.title }}</strong></div>{% endfor %}<div data-preliq-island="CartDrawer" data-preliq-id="cart" data-preliq-props="{{ {&quot;currency&quot;:&quot;{{ shop.currency }}&quot;} | json }}"></div></section>
