@@ -75,14 +75,11 @@ function ProductCardSSR(props: ProductCardProps) {
     // The hydration runtime will automatically read this and pass to ProductCard
     return (
       <div
-        className="product-card-ssr"
-        data-preliq-props={rawLiquid(`{{ {
-          "product": {{ product | json | escape }},
-          "collection": {{ collection | json | escape }},
-          "showPrice": {{ showPrice | default: true }}
-        } | json | escape }}`)}
+        data-preliq-island="ProductCard"
+        data-preliq-id="product-card"
+        data-preliq-props={rawLiquid(`{{ '{"product":' | append: (product | json | escape) | append: ',"collection":' | append: (collection | json | escape) | append: ',"showPrice":' | append: (showPrice | default: true) | append: '}' }}`)}
       >
-        {/* Server-rendered HTML */}
+        {/* Server-rendered HTML - will be replaced by hydrated component */}
         <ProductCard {...props} />
       </div>
     );

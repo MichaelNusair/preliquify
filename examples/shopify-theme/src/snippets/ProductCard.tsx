@@ -12,7 +12,7 @@
 
 /** @jsxImportSource preact */
 import { h } from "preact";
-import { useTarget, rawLiquid, liquidJson } from "@preliquify/preact";
+import { useTarget, rawLiquid } from "@preliquify/preact";
 
 // 1. Define your component props interface
 interface ProductCardProps {
@@ -37,25 +37,27 @@ function ProductCard(props: ProductCardProps) {
   );
 }
 
-// 3. SSR wrapper - captures props in data attributes for hydration
+// 3. SSR wrapper - wraps component with hydration attributes
 function ProductCardSSR(props: ProductCardProps) {
   const target = useTarget();
 
   if (target === "liquid") {
-    // Store all props in data-preliq-props for automatic hydration
-    // The hydration runtime will automatically read this and pass to ProductCard
-    // Use Liquid expressions that reference the parameters passed via {% render %}
+    // Wrap component with data attributes for automatic hydration
+    // The hydration runtime will read data-preliq-props and hydrate ProductCard
+    // Note: props.product, props.collection are Liquid expression strings at build time
+    // They become actual values when Shopify evaluates the Liquid at runtime
+
+    // Construct JSON object using Liquid string concatenation
+    // This is the correct way to build JSON with Liquid variables
     return (
       <div
-        className="product-card-ssr"
-        data-preliq-props={rawLiquid(`{{ {
-          "product": {{ product | json | escape }},
-          "collection": {{ collection | json | escape }},
-          "showPrice": {{ showPrice | default: true }},
-          "customTitle": {{ product.title | escape | json }}
-        } | json | escape }}`)}
+        data-preliq-island="ProductCard"
+        data-preliq-id="product-card"
+        data-preliq-props={rawLiquid(
+          `{{ '{"product":' | append: (product | json | escape) | append: ',"collection":' | append: (collection | json | escape) | append: ',"showPrice":' | append: (showPrice | default: true) | append: ',"customTitle":' | append: (product.title | escape | json) | append: '}' }}`
+        )}
       >
-        {/* Server-rendered HTML */}
+        {/* Server-rendered HTML - will be replaced by hydrated component on client */}
         <ProductCard {...props} />
       </div>
     );
