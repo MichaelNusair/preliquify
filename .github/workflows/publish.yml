@@ -1,11 +1,14 @@
 name: Publish Packages
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       version:
         description: "Version bump type"
-        required: true
+        required: false
         type: choice
         options:
           - patch
@@ -58,6 +61,7 @@ jobs:
         run: pnpm publish-all-packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION_BUMP: ${{ github.event.inputs.version || 'patch' }}
 
       - name: Push changes
         run: |
