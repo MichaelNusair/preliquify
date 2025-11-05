@@ -296,9 +296,13 @@ if (typeof window !== 'undefined') {
 
 For detailed documentation, see the [docs](./docs/) folder:
 
-- **[Getting Started](./docs/getting-started.md)** - Installation and quick start guide
+- **[Quick Reference](./docs/quick-reference.md)** - Cheat sheet for common patterns
+- **[Getting Started](./docs/getting-started.md)** - Installation and tutorial
+- **[Entry Points](./docs/entry-points.md)** - Smart compilation and organization
+- **[Client Bundles](./docs/client-bundles.md)** - Auto-bundling and registration
 - **[Primitives](./docs/primitives.md)** - Complete guide to Liquid primitives
 - **[Best Practices](./docs/best-practices.md)** - Guidelines for maintainable code
+- **[Upgrade Guide](./UPGRADE_GUIDE.md)** - Migration from earlier versions
 - **[API Reference](./docs/README.md)** - Full API documentation
 
 ## Development
