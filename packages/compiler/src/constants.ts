@@ -86,7 +86,7 @@ export const ESBUILD_RUNTIME_CONFIG: BuildOptions = {
   minify: true,
   target: ["es2015"],
   treeShaking: true,
-  mangleProps: /^_/,
+  mangleProps: /^_(?!_PRELIQUIFY__)/, // Don't mangle __PRELIQUIFY__
   legalComments: "none",
   pure: ["console.log"],
   drop: ["debugger"],
