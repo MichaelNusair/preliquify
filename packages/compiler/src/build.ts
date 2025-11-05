@@ -720,15 +720,25 @@ export async function build(opts: BuildOptions) {
             const bundleOutPath = join(outClientDir, bundleFilename);
 
             // Create a wrapper file with auto-registration
+            // Use string literal for component name to prevent minification issues
             const wrapperContent = `
 import { default as Snippet } from '${file}';
+import { h } from 'preact';
+import { render } from 'preact';
+
+// Expose Preact globally for runtime (must be before registration)
+if (typeof window !== 'undefined') {
+  window.preact = { h, render };
+}
 
 // Extract the original component from the snippet wrapper
 // createLiquidSnippet attaches the component to __preliquifyComponent
 const Component = Snippet.__preliquifyComponent || Snippet;
+// Get component name but use string literal in registration to prevent minification
 const componentName = Snippet.__preliquifyComponentName || '${componentName}';
 
 // Auto-registration with retry logic
+// Use string literal directly to prevent minifier from mangling the name
 (function() {
   let registered = false;
   
@@ -737,10 +747,11 @@ const componentName = Snippet.__preliquifyComponentName || '${componentName}';
     
     if (typeof window !== 'undefined' && window.__PRELIQUIFY__) {
       if (window.__PRELIQUIFY__.register) {
-        window.__PRELIQUIFY__.register(componentName, Component);
+        // Use string literal directly - prevents minifier from using variable name
+        window.__PRELIQUIFY__.register('${componentName}', Component);
         registered = true;
         if (${verbose}) {
-          console.log('[__PRELIQUIFY__] Registered:', componentName);
+          console.log('[__PRELIQUIFY__] Registered:', '${componentName}');
         }
         return;
       }

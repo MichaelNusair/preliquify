@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.17] - 2024-11-05
+
+### Fixed
+- Component registration uses string literals to prevent minification issues
+- Components are registered with correct names (e.g., `"ProductCardSimple"` not `Ka`)
+- Preact is exposed globally as `window.preact = { h, render }` for hydration
+- Both fixes ensure auto-registration and hydration work correctly
+
 ## [1.1.16] - 2024-11-05
 
 ### Fixed
