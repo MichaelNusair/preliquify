@@ -16,7 +16,7 @@ function safeHydrate(
   Component: any,
   props: any,
   runtime: PreliquifyRuntime
-): void {
+): boolean {
   try {
     const preact = (window as any).preact;
     if (!preact) {
@@ -32,6 +32,8 @@ function safeHydrate(
     if (id) {
       runtime.mounted.set(id, { element, Component, props });
     }
+
+    return true;
   } catch (error) {
     runtime.errors.push(error as Error);
 
@@ -50,6 +52,8 @@ function safeHydrate(
         bubbles: true,
       })
     );
+
+    return false;
   }
 }
 
@@ -182,16 +186,19 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
   }
 
   const props = parseProps(element);
-  safeHydrate(element, Component, props, runtime);
+  const hydrated = safeHydrate(element, Component, props, runtime);
 
-  element.setAttribute("data-preliq-hydrated", "true");
+  // Only mark as hydrated if render actually succeeded
+  if (hydrated) {
+    element.setAttribute("data-preliq-hydrated", "true");
 
-  element.dispatchEvent(
-    new CustomEvent("preliquify:hydrated", {
-      detail: { id, component: componentName },
-      bubbles: true,
-    })
-  );
+    element.dispatchEvent(
+      new CustomEvent("preliquify:hydrated", {
+        detail: { id, component: componentName },
+        bubbles: true,
+      })
+    );
+  }
 }
 
 function initRuntime(): PreliquifyRuntime {

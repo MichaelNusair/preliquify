@@ -125,15 +125,13 @@ chore: update dependencies
 1. **Update the README** if you've added new features or changed behavior
 2. **Update tests** to cover your changes
 3. **Ensure all tests pass** and there are no linting errors
-4. **Update the CHANGELOG.md** with your changes
-5. **Create a Pull Request** with a clear description of your changes
+4. **Create a Pull Request** with a clear description of your changes
 
 ### PR Checklist
 
 - [ ] Code follows the project's style guidelines
 - [ ] Tests added/updated and passing
 - [ ] Documentation updated if needed
-- [ ] CHANGELOG.md updated
 - [ ] All CI checks pass
 
 ## Reporting Bugs

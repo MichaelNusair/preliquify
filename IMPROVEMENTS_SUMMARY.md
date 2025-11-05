@@ -52,11 +52,6 @@ All packages (`@preliquify/cli`, `@preliquify/compiler`, `@preliquify/core`, `@p
 - PR checklist
 - Deployment guidelines
 
-#### CHANGELOG.md
-- Standardized changelog format following Keep a Changelog
-- Version history tracking
-- Categorized changes (Added, Changed, Fixed, etc.)
-
 #### Documentation Folder (`docs/`)
 Created comprehensive documentation:
 
@@ -75,7 +70,6 @@ Created comprehensive documentation:
 #### `.github/workflows/publish.yml`
 - Automated package publishing workflow
 - Manual trigger with version bump options
-- Automated git tagging and changelog updates
 
 #### `.github/PULL_REQUEST_TEMPLATE.md`
 - Standardized PR template
@@ -197,7 +191,6 @@ Enhanced `.gitignore` with:
 - `.editorconfig`
 - `eslint.config.js`
 - `CONTRIBUTING.md`
-- `CHANGELOG.md`
 - `IMPROVEMENTS_SUMMARY.md`
 - `.github/workflows/ci.yml`
 - `.github/workflows/publish.yml`

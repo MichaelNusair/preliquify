@@ -110,8 +110,18 @@ export const FALLBACK_RUNTIME = `
       var propsEl=el.querySelector('script[data-preliq-props]');
       var props={};
       try{props=JSON.parse(propsEl?propsEl.textContent:el.getAttribute('data-preliq-props')||'{}');}catch(_){}
-      if(window.preact)window.preact.render(window.preact.h(Comp,props),el);
-      el.setAttribute('data-preliq-hydrated','true');
+      if(window.preact){
+        try{
+          window.preact.render(window.preact.h(Comp,props),el);
+          el.setAttribute('data-preliq-hydrated','true');
+        }catch(e){
+          el.setAttribute('data-preliq-error','true');
+          console.error('[Preliquify] Hydration error:',e);
+        }
+      }else{
+        el.setAttribute('data-preliq-error','preact-not-available');
+        console.error('[Preliquify] Preact not available, cannot hydrate:',name);
+      }
     }
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',window.__PRELIQUIFY__.hydrate);
