@@ -1,6 +1,17 @@
 # Preliquify
 
-Build Shopify Liquid snippets using React/Preact components. Write your theme snippets in TypeScript/JSX and compile them to Liquid template files.
+Build Shopify Liquid snippets using React/Preact components. Write your theme snippets in TypeScript/JSX and compile them to Liquid template files with automatic client-side hydration.
+
+## Features
+
+- ✅ **One Command Build** - `preliquify build` generates everything
+- ✅ **Auto-Bundling** - Automatic client component bundles
+- ✅ **Auto-Registration** - No boilerplate code needed
+- ✅ **Smart Compilation** - Only bundles files with `createLiquidSnippet`
+- ✅ **SSR + Hydration** - Server-side rendering with client interactivity
+- ✅ **Liquid Primitives** - `<For>`, `<Conditional>`, etc. compile to native Liquid
+- ✅ **Type Safety** - Full TypeScript support
+- ✅ **Hot Reload** - Watch mode for rapid development
 
 ## Installation
 
@@ -73,9 +84,69 @@ This generates `snippets/ProductCard.liquid` that you can use in Shopify:
 
 1. **Write your component once** with normal props
 2. **Use `createLiquidSnippet`** to map props to Liquid variables
-3. **Preliquify compiles** your component to a Liquid snippet
-4. **Shopify evaluates** the Liquid at runtime
-5. **Hydration runtime** automatically hydrates your component with props
+3. **Run `preliquify build`** - generates everything automatically:
+   - `.liquid` files (SSR templates)
+   - `preliquify-prlq.runtime.js` (hydration framework)
+   - `.bundle.js` files (component code with auto-registration)
+4. **Include scripts** in your theme layout (one-time setup)
+5. **Render snippets** - they auto-hydrate with full interactivity
+
+## Complete Example
+
+### Your Component
+
+```tsx
+// src/snippets/MediaGallery.tsx
+import { For, $, createLiquidSnippet } from '@preliquify/preact';
+
+function MediaGallery({ media }) {
+  return (
+    <div className="gallery">
+      <For each={$.var('media')} as="item">
+        {(item, i) => (
+          <img key={i} src={item.src} alt={item.alt} />
+        )}
+      </For>
+    </div>
+  );
+}
+
+export default createLiquidSnippet(MediaGallery, {
+  media: 'media'
+});
+```
+
+### Build
+
+```bash
+$ pnpm preliquify build
+
+✅ Generated client runtime: assets/preliquify-prlq.runtime.js
+📦 Generated 1 client bundle(s)
+✅ Successfully compiled 1 component(s)
+```
+
+### Theme Setup (One Time)
+
+```liquid
+<!-- theme.liquid -->
+<script src="https://unpkg.com/preact@10/dist/preact.umd.js"></script>
+<script>window.preact = { h: preactUmd.h, render: preactUmd.render };</script>
+<script src="{{ 'preliquify-prlq.runtime.js' | asset_url }}" defer></script>
+<script src="{{ 'MediaGallery-prlq.bundle.js' | asset_url }}" defer></script>
+```
+
+### Use the Snippet
+
+```liquid
+<!-- product.liquid -->
+{% render 'MediaGallery-prlq', media: product.media %}
+```
+
+**Result:**
+- Server renders `{% for %}` loops immediately
+- Client hydrates with full React interactivity
+- No manual configuration needed!
 
 ## Component Patterns
 

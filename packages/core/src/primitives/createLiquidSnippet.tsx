@@ -258,5 +258,10 @@ export function createLiquidSnippet<P extends Record<string, unknown>>(
 
   LiquidSnippet.displayName = `${componentName}Snippet`;
 
+  // Attach the original component for client-side bundling
+  // This allows the bundler to access the raw component for hydration
+  (LiquidSnippet as any).__preliquifyComponent = Component;
+  (LiquidSnippet as any).__preliquifyComponentName = componentName;
+
   return LiquidSnippet;
 }

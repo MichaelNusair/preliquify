@@ -26,4 +26,16 @@ export type BuildOptions = {
   watch?: boolean;
   verbose?: boolean; // Show detailed error information
   suffixDistFiles?: boolean; // default: true - suffix all dist files with -prlq
+
+  /**
+   * Generate client-side component bundles with auto-registration
+   * @default true
+   */
+  generateClientBundles?: boolean;
+
+  /**
+   * Minify client bundles
+   * @default true for production, false for development
+   */
+  minify?: boolean;
 };

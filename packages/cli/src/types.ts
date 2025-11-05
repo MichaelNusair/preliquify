@@ -25,14 +25,14 @@ export interface PreliquifyConfig {
    * - A directory path to scan (e.g., "./src/snippets")
    * - A glob pattern (e.g., "./src/snippets.tsx")
    * - An array of files/directories/patterns
-   * 
+   *
    * Only files containing createLiquidSnippet will be compiled to .liquid files.
    */
   entryPoint?: string | string[];
-  
+
   /** @deprecated Use `entryPoint` instead. Will be removed in v2.0.0 */
   srcDir?: string;
-  
+
   /** Output directory for Liquid templates */
   outLiquidDir?: string;
   /** Output directory for client assets */
@@ -45,4 +45,17 @@ export interface PreliquifyConfig {
   verbose?: boolean;
   /** Suffix all dist files (liquid and js) with -prlq (default: true) */
   suffixDistFiles?: boolean;
+
+  /**
+   * Generate client-side component bundles with auto-registration
+   * When true, creates .bundle.js files for each component that auto-register with the runtime
+   * @default true
+   */
+  generateClientBundles?: boolean;
+
+  /**
+   * Minify client bundles
+   * @default true
+   */
+  minify?: boolean;
 }

@@ -157,7 +157,8 @@ async function loadConfig(customConfigPath?: string): Promise<any> {
 const cfg = (await loadConfig(flags.config)) ?? {};
 
 const buildOptions = {
-  entryPoint: cfg.entryPoint || flags.srcDir || cfg.srcDir || resolve("src/snippets"),
+  entryPoint:
+    cfg.entryPoint || flags.srcDir || cfg.srcDir || resolve("src/snippets"),
   srcDir: flags.srcDir || cfg.srcDir, // Backwards compatibility
   outLiquidDir: flags.outLiquidDir ?? cfg.outLiquidDir ?? resolve("snippets"),
   outClientDir: flags.outClientDir ?? cfg.outClientDir ?? resolve("assets"),
@@ -166,12 +167,14 @@ const buildOptions = {
   verbose: flags.verbose || !!cfg.verbose,
   suffixDistFiles:
     cfg.suffixDistFiles !== undefined ? cfg.suffixDistFiles : true,
+  generateClientBundles: cfg.generateClientBundles !== false, // Default true
+  minify: cfg.minify !== false, // Default true
 };
 
 console.log("\n🚀 Starting PreLiquify build...\n");
 if (flags.verbose) {
   console.log("Configuration:");
-  const entryPointDisplay = Array.isArray(buildOptions.entryPoint) 
+  const entryPointDisplay = Array.isArray(buildOptions.entryPoint)
     ? buildOptions.entryPoint.join(", ")
     : buildOptions.entryPoint;
   console.log(`  Entry point: ${entryPointDisplay}`);

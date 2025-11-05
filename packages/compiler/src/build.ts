@@ -702,6 +702,95 @@ export async function build(opts: BuildOptions) {
         console.warn("⚠️  Failed to build enhanced runtime, using fallback");
         await fs.writeFile(runtimeOutPath, FALLBACK_RUNTIME, "utf8");
       }
+
+      // Generate client bundles for each component with auto-registration
+      const generateClientBundles = opts.generateClientBundles !== false; // Default true
+
+      if (generateClientBundles) {
+        console.log(`\n📦 Generating client component bundles...`);
+
+        let bundleCount = 0;
+        for (const file of entries) {
+          try {
+            const componentName = basename(file, ".tsx");
+            const bundleFilename = applySuffixIfNeeded(
+              `${componentName}.bundle.js`,
+              suffixDistFiles
+            );
+            const bundleOutPath = join(outClientDir, bundleFilename);
+
+            // Create a wrapper file with auto-registration
+            const wrapperContent = `
+import { default as Snippet } from '${file}';
+
+// Extract the original component from the snippet wrapper
+// createLiquidSnippet attaches the component to __preliquifyComponent
+const Component = Snippet.__preliquifyComponent || Snippet;
+const componentName = Snippet.__preliquifyComponentName || '${componentName}';
+
+// Auto-registration with retry logic
+(function() {
+  let registered = false;
+  
+  function registerComponent() {
+    if (registered) return;
+    
+    if (typeof window !== 'undefined' && window.__PRELIQUIFY__) {
+      if (window.__PRELIQUIFY__.register) {
+        window.__PRELIQUIFY__.register(componentName, Component);
+        registered = true;
+        if (${verbose}) {
+          console.log('[Preliquify] Registered component:', componentName);
+        }
+        return;
+      }
+    }
+    
+    // Runtime not loaded yet, retry
+    setTimeout(registerComponent, 10);
+  }
+  
+  // Start registration when script loads
+  if (typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', registerComponent);
+    } else {
+      registerComponent();
+    }
+  }
+})();
+`;
+
+            const wrapperPath = join(tmpDir, `${componentName}-wrapper.js`);
+            await fs.writeFile(wrapperPath, wrapperContent, "utf8");
+
+            // Bundle the component with auto-registration
+            await esbuild({
+              entryPoints: [wrapperPath],
+              bundle: true,
+              outfile: bundleOutPath,
+              format: "iife",
+              target: "es2020",
+              minify: opts.minify !== false,
+              external: [...EXTERNAL_PACKAGES],
+              platform: "browser",
+              jsx: "automatic",
+              jsxImportSource: opts.jsxImportSource || "preact",
+            });
+
+            bundleCount++;
+            if (verbose) {
+              console.log(`  ✓ ${bundleFilename}`);
+            }
+          } catch (error) {
+            console.warn(`⚠️  Failed to bundle ${basename(file)}:`, error);
+          }
+        }
+
+        if (bundleCount > 0) {
+          console.log(`✅ Generated ${bundleCount} client bundle(s)`);
+        }
+      }
     }
 
     if (watch) {
