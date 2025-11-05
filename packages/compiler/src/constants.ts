@@ -81,12 +81,12 @@ export const ESBUILD_RUNTIME_CONFIG = {
   format: "iife" as const,
   platform: "browser" as const,
   minify: true,
-  target: ["es2015"] as const,
+  target: ["es2015"],
   treeShaking: true,
   mangleProps: /^_/,
   legalComments: "none" as const,
   pure: ["console.log"],
-  drop: ["debugger"] as const,
+  drop: ["debugger"],
   globalName: "PreliquifyRuntime",
 };
 
