@@ -3,14 +3,28 @@
   "private": false,
   "license": "MIT",
   "author": "Preliquify",
+  "description": "CLI tool for building Shopify Liquid snippets from React/Preact components",
+  "homepage": "https://github.com/MichaelNusair/preliquify#readme",
+  "keywords": [
+    "preliquify",
+    "cli",
+    "shopify",
+    "liquid",
+    "compiler",
+    "build-tool"
+  ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/MichaelNusair/preliquify"
+    "url": "https://github.com/MichaelNusair/preliquify",
+    "directory": "packages/cli"
   },
   "bugs": {
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
-  "version": "0.1.53",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "version": "1.0.0",
   "bin": {
     "preliquify": "dist/index.js"
   },

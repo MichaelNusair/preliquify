@@ -3,14 +3,27 @@
   "private": false,
   "license": "MIT",
   "author": "Preliquify",
+  "description": "Preact bindings for Preliquify - build Liquid templates with Preact",
+  "homepage": "https://github.com/MichaelNusair/preliquify#readme",
+  "keywords": [
+    "preliquify",
+    "preact",
+    "liquid",
+    "shopify",
+    "jsx"
+  ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/MichaelNusair/preliquify"
+    "url": "https://github.com/MichaelNusair/preliquify",
+    "directory": "packages/preact"
   },
   "bugs": {
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
-  "version": "0.1.53",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

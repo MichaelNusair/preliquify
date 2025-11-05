@@ -15,7 +15,22 @@ import {
   createErrorReporter,
 } from "./errors.js";
 import chokidar from "chokidar";
+import {
+  EXTERNAL_PACKAGES,
+  DEFAULT_CONCURRENCY,
+  WATCH_DEBOUNCE_MS,
+  BROWSER_API_ERRORS,
+  LIQUID_EXPRESSION_ERRORS,
+  ESBUILD_COMPONENT_CONFIG,
+  ESBUILD_RUNTIME_CONFIG,
+  FALLBACK_RUNTIME,
+} from "./constants.js";
 
+/**
+ * Finds the project root by looking for node_modules directory
+ * @param startPath - Starting directory path
+ * @returns Project root path or null if not found
+ */
 async function findProjectRoot(startPath: string): Promise<string | null> {
   let current = resolve(startPath);
   const filesystemRoot = parse(current).root;
@@ -35,22 +50,21 @@ async function findProjectRoot(startPath: string): Promise<string | null> {
   return null;
 }
 
+/**
+ * Sets up temporary node_modules directory with symlinks to external packages
+ * @param projectRoot - Project root directory
+ * @param tmpDir - Temporary directory path
+ * @param externalPackages - List of external package names to symlink
+ */
 async function setupTempNodeModules(
   projectRoot: string,
   tmpDir: string,
   externalPackages: string[]
 ): Promise<void> {
-  const projectNodeModules = join(projectRoot, "node_modules");
   const tmpNodeModules = join(tmpDir, "node_modules");
-
   await fs.mkdir(tmpNodeModules, { recursive: true });
 
-  let projectRequire: NodeRequire;
-  try {
-    projectRequire = createRequire(join(projectRoot, "package.json"));
-  } catch {
-    projectRequire = createRequire(join(projectRoot, "package.json"));
-  }
+  const projectRequire = createRequire(join(projectRoot, "package.json"));
 
   const basePackages = new Set<string>();
   for (const pkg of externalPackages) {
@@ -92,31 +106,59 @@ async function setupTempNodeModules(
         actualPkgDir = dirname(resolvedPath);
       }
 
-      const tmpPkgPath = join(tmpNodeModules, basePkg);
-
-      try {
-        try {
-          const stat = await fs.lstat(tmpPkgPath);
-          if (stat.isSymbolicLink()) {
-            await fs.unlink(tmpPkgPath);
-          }
-        } catch {}
-
-        const absolutePkgDir = resolve(actualPkgDir);
-        await fs.symlink(absolutePkgDir, tmpPkgPath, "dir");
-      } catch (e: any) {
-        if (process.platform === "win32") {
-          try {
-            const absolutePkgDir = resolve(actualPkgDir);
-            await fs.symlink(absolutePkgDir, tmpPkgPath, "junction");
-          } catch {}
-        }
-      }
-    } catch (e) {}
+      await createSymlink(actualPkgDir, tmpNodeModules, basePkg);
+    } catch (error) {
+      // Silently continue if package symlink fails - non-critical
+    }
   }
 }
 
-function createBrowserPolyfills() {
+/**
+ * Creates a symlink for a package in the temporary node_modules
+ * Handles both Unix and Windows platforms
+ */
+async function createSymlink(
+  packageDir: string,
+  tmpNodeModules: string,
+  packageName: string
+): Promise<void> {
+  const tmpPkgPath = join(tmpNodeModules, packageName);
+
+  // Remove existing symlink if present
+  try {
+    const stat = await fs.lstat(tmpPkgPath);
+    if (stat.isSymbolicLink()) {
+      await fs.unlink(tmpPkgPath);
+    }
+  } catch {
+    // Symlink doesn't exist, continue
+  }
+
+  const absolutePkgDir = resolve(packageDir);
+
+  try {
+    // Try standard directory symlink first
+    await fs.symlink(absolutePkgDir, tmpPkgPath, "dir");
+  } catch (error) {
+    // On Windows, try junction if directory symlink fails
+    if (process.platform === "win32") {
+      try {
+        await fs.symlink(absolutePkgDir, tmpPkgPath, "junction");
+      } catch {
+        throw error; // Re-throw if junction also fails
+      }
+    } else {
+      throw error;
+    }
+  }
+}
+
+/**
+ * Generates browser API polyfills for SSR environment
+ * These polyfills allow components to be rendered at build time
+ * without throwing errors for browser-only APIs
+ */
+function createBrowserPolyfills(): string {
   return `
     if (typeof globalThis.__PRELIQUIFY_SSR__ === 'undefined') {
       globalThis.__PRELIQUIFY_SSR__ = typeof window === 'undefined';
@@ -240,6 +282,13 @@ function createBrowserPolyfills() {
   `;
 }
 
+/**
+ * Applies -prlq suffix to filenames before extension
+ * @param filename - Original filename
+ * @param suffixDistFiles - Whether to apply suffix
+ * @returns Filename with suffix applied if enabled
+ * @example applySuffixIfNeeded("ProductCard.liquid", true) => "ProductCard-prlq.liquid"
+ */
 function applySuffixIfNeeded(
   filename: string,
   suffixDistFiles: boolean
@@ -310,13 +359,7 @@ export async function build(opts: BuildOptions) {
     );
   }
 
-  const externalPackages = [
-    "preact",
-    "preact/hooks",
-    "preact-render-to-string",
-  ];
-
-  await setupTempNodeModules(projectRoot, tmpDir, externalPackages);
+  await setupTempNodeModules(projectRoot, tmpDir, [...EXTERNAL_PACKAGES]);
 
   const originalNodePath = process.env.NODE_PATH;
   const projectNodeModules = join(projectRoot, "node_modules");
@@ -327,7 +370,7 @@ export async function build(opts: BuildOptions) {
 
   try {
     let needsRuntime = false;
-    const concurrency = 4;
+    const concurrency = DEFAULT_CONCURRENCY;
 
     const processBatch = async (batch: string[]) => {
       return Promise.all(
@@ -341,20 +384,12 @@ export async function build(opts: BuildOptions) {
             await esbuild({
               entryPoints: [file],
               bundle: true,
-              format: "esm",
-              platform: "node",
               outfile: tmpOut,
-              jsx: "automatic",
-              jsxImportSource: "preact",
-              external: externalPackages,
+              external: [...EXTERNAL_PACKAGES],
               banner: {
                 js: createBrowserPolyfills(),
               },
-              treeShaking: true,
-              minifySyntax: true,
-              minifyIdentifiers: false,
-              target: "node14",
-              legalComments: "none",
+              ...ESBUILD_COMPONENT_CONFIG,
             });
 
             const polyfillCode = createBrowserPolyfills();
@@ -384,28 +419,11 @@ export async function build(opts: BuildOptions) {
               "No component export found"
             );
 
-            const browserAPIErrors = [
-              "window is not defined",
-              "document is not defined",
-              "localStorage is not defined",
-              "HTMLElement is not defined",
-              "Cannot read property",
-              "Cannot access",
-            ];
-            const isBrowserAPIError = browserAPIErrors.some((msg) =>
+            const isBrowserAPIError = BROWSER_API_ERRORS.some((msg) =>
               errorMessage.includes(msg)
             );
 
-            // Detect common Liquid expression errors
-            const liquidExpressionErrors = [
-              { pattern: /\.map is not a function/i, fix: "Use <For /> primitive instead of .map() for Liquid collections" },
-              { pattern: /\.filter is not a function/i, fix: "Use <Conditional /> or <Choose /> with Liquid expressions instead of .filter()" },
-              { pattern: /\.reduce is not a function/i, fix: "Use Liquid filters or <For /> with accumulation instead of .reduce()" },
-              { pattern: /\.forEach is not a function/i, fix: "Use <For /> primitive instead of .forEach() for Liquid collections" },
-              { pattern: /\.length/i, fix: "Use Liquid's 'size' filter or render conditionally with <Conditional />" },
-            ];
-            
-            const liquidError = liquidExpressionErrors.find(({ pattern }) =>
+            const liquidError = LIQUID_EXPRESSION_ERRORS.find(({ pattern }) =>
               pattern.test(errorMessage)
             );
 
@@ -459,51 +477,14 @@ export async function build(opts: BuildOptions) {
         await esbuild({
           entryPoints: [runtimePath],
           bundle: true,
-          format: "iife",
-          platform: "browser",
           outfile: runtimeOutPath,
-          minify: true,
-          target: ["es2015"],
-          treeShaking: true,
-          mangleProps: /^_/,
-          legalComments: "none",
-          pure: ["console.log"],
-          drop: ["debugger"],
-          globalName: "PreliquifyRuntime",
+          ...ESBUILD_RUNTIME_CONFIG,
         });
 
         console.log(`✅ Generated client runtime: ${runtimeOutPath}`);
-      } catch (error: any) {
+      } catch (error) {
         console.warn("⚠️  Failed to build enhanced runtime, using fallback");
-
-        const fallbackRuntime = `
-(function(){
-  function parseProps(el){
-    try { return JSON.parse(el.getAttribute('data-preliq-props')); }
-    catch(_) { return {}; }
-  }
-  function mount(){
-    var nodes = document.querySelectorAll('[data-preliq-island]');
-    for (var i=0;i<nodes.length;i++){
-      var el = nodes[i];
-      var name = el.getAttribute('data-preliq-island');
-      var id = el.getAttribute('data-preliq-id');
-      var Comp = (window.Preliquify||{})[name];
-      if (!Comp) continue;
-      var props = parseProps(el) || {};
-      if (window.preact) {
-        window.preact.render(window.preact.h(Comp, props), el);
-      }
-    }
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mount);
-  } else {
-    mount();
-  }
-})();
-`;
-        await fs.writeFile(runtimeOutPath, fallbackRuntime, "utf8");
+        await fs.writeFile(runtimeOutPath, FALLBACK_RUNTIME, "utf8");
       }
     }
 
@@ -561,7 +542,7 @@ async function startWatchMode(
           console.error("\n❌ Build failed, waiting for changes...");
         }
       }
-    }, 300);
+    }, WATCH_DEBOUNCE_MS);
   };
 
   watcher
