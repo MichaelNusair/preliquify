@@ -1,8 +1,6 @@
-// Enhanced expression system with more Liquid operators and filters
 import type { Expr, EnhancedExpressionBuilder } from "./types.js";
 
 export const $$: EnhancedExpressionBuilder = {
-  // All existing operators from $
   lit<T>(v: T): Expr<T> {
     return {
       toLiquid: () => JSON.stringify(v),
@@ -22,7 +20,6 @@ export const $$: EnhancedExpressionBuilder = {
     };
   },
 
-  // Logical operators
   not(a: Expr<boolean>): Expr<boolean> {
     return {
       toLiquid: () => `(not ${a.toLiquid()})`,
@@ -44,7 +41,6 @@ export const $$: EnhancedExpressionBuilder = {
     };
   },
 
-  // Comparison operators
   eq(a: Expr<any>, b: Expr<any>): Expr<boolean> {
     return {
       toLiquid: () => `${a.toLiquid()} == ${b.toLiquid()}`,
@@ -87,7 +83,6 @@ export const $$: EnhancedExpressionBuilder = {
     };
   },
 
-  // Array/String operations
   contains(collection: Expr<any>, item: Expr<any>): Expr<boolean> {
     return {
       toLiquid: () => `${collection.toLiquid()} contains ${item.toLiquid()}`,
@@ -134,7 +129,6 @@ export const $$: EnhancedExpressionBuilder = {
     };
   },
 
-  // Null/undefined checks
   isNil(value: Expr<any>): Expr<boolean> {
     return {
       toLiquid: () => `${value.toLiquid()} == nil`,
@@ -160,7 +154,6 @@ export const $$: EnhancedExpressionBuilder = {
     };
   },
 
-  // Math operations
   plus(a: Expr<number>, b: Expr<number>): Expr<number> {
     return {
       toLiquid: () => `${a.toLiquid()} | plus: ${b.toLiquid()}`,
@@ -235,7 +228,6 @@ export const $$: EnhancedExpressionBuilder = {
     };
   },
 
-  // String operations
   append(str: Expr<string>, suffix: Expr<string>): Expr<string> {
     return {
       toLiquid: () => `${str.toLiquid()} | append: ${suffix.toLiquid()}`,
@@ -337,7 +329,6 @@ export const $$: EnhancedExpressionBuilder = {
     };
   },
 
-  // Array operations
   join(array: Expr<any[]>, separator: Expr<string>): Expr<string> {
     return {
       toLiquid: () => `${array.toLiquid()} | join: ${separator.toLiquid()}`,
@@ -440,7 +431,6 @@ export const $$: EnhancedExpressionBuilder = {
     };
   },
 
-  // Date operations
   date(value: Expr<any>, format: Expr<string>): Expr<string> {
     return {
       toLiquid: () => `${value.toLiquid()} | date: ${format.toLiquid()}`,
@@ -475,7 +465,6 @@ export const $$: EnhancedExpressionBuilder = {
     };
   },
 
-  // Default/fallback value
   default(value: Expr<any>, fallback: Expr<any>): Expr<any> {
     return {
       toLiquid: () => `${value.toLiquid()} | default: ${fallback.toLiquid()}`,
@@ -487,13 +476,11 @@ export const $$: EnhancedExpressionBuilder = {
     };
   },
 
-  // Shopify-specific filters
   money(value: Expr<number>): Expr<string> {
     return {
       toLiquid: () => `${value.toLiquid()} | money`,
       toClient: () => (ctx) => {
         const val = value.toClient()(ctx);
-        // Simple money formatting for client-side
         return `$${(val / 100).toFixed(2)}`;
       },
     };
@@ -540,6 +527,5 @@ export const $$: EnhancedExpressionBuilder = {
   },
 };
 
-// Export both the enhanced ($$ and the original $ for backward compatibility
 export { $ } from "./expr.js";
 export { $$ as $enhanced };

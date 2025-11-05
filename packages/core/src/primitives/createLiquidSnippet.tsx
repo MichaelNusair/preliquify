@@ -1,27 +1,3 @@
-/**
- * Helper to automatically create Liquid snippets from components
- *
- * This eliminates the need to manually write SSR wrappers and default exports.
- * Just write your component with normal props, and this handles the rest.
- *
- * @example
- * ```tsx
- * interface Props {
- *   product: Product;
- *   showPrice?: boolean;
- * }
- *
- * function ProductCard({ product, showPrice = true }: Props) {
- *   return <div>{product.title}</div>;
- * }
- *
- * export default createLiquidSnippet(ProductCard, {
- *   product: "product",  // Liquid variable name matches prop name
- *   showPrice: { liquidVar: "showPrice", default: true }
- * });
- * ```
- */
-
 import { h } from "preact";
 import { useTarget } from "../runtime.js";
 import { rawLiquid } from "../liquid.js";
@@ -40,17 +16,9 @@ interface CreateLiquidSnippetOptions {
   /** ID for the hydration island (defaults to component name in kebab-case) */
   id?: string;
   /** Placeholder content shown at build time (defaults to "Loading...") */
-  placeholder?: any; // JSX.Element but avoiding JSX namespace dependency
+  placeholder?: any;
 }
 
-/**
- * Creates a Liquid snippet from a component with automatic SSR wrapper and default export
- *
- * @param Component - Your component that receives normal props
- * @param propMapping - Mapping of prop names to Liquid variables
- * @param options - Optional configuration
- * @returns A component ready to be exported as default for Preliquify
- */
 export function createLiquidSnippet<P extends Record<string, any>>(
   Component: ComponentType<P>,
   propMapping: Record<keyof P, PropMapping>,
@@ -69,12 +37,7 @@ export function createLiquidSnippet<P extends Record<string, any>>(
       .replace(/^-/, "");
   const placeholder = options.placeholder || <div>Loading...</div>;
 
-  // SSR wrapper that automatically handles props
   function ComponentSSR(props: P) {
-    // This component is only used during SSR (build time)
-    // At runtime, hydration replaces it, so we always render the Liquid output
-    // We don't need to check useTarget() because this component is never used at runtime
-    // Build Liquid expression for data-preliq-props using append filter
     const propEntries = Object.entries(propMapping);
 
     if (propEntries.length === 0) {
@@ -156,10 +119,7 @@ export function createLiquidSnippet<P extends Record<string, any>>(
     );
   }
 
-  // Default export that maps Liquid variables to props
   function LiquidSnippet() {
-    // Always render ComponentSSR - it will handle target checking internally
-    // We build props with Liquid expressions here, which ComponentSSR will use
     const props: Partial<P> = {};
 
     for (const [propName, mapping] of Object.entries(propMapping)) {
@@ -181,12 +141,9 @@ export function createLiquidSnippet<P extends Record<string, any>>(
       }
     }
 
-    // Always render ComponentSSR - it checks useTarget() internally
-    // At build time, TargetProvider wraps this component, so useTarget() should return 'liquid'
     return <ComponentSSR {...(props as P)} />;
   }
 
-  // Set display name for debugging
   LiquidSnippet.displayName = `${componentName}Snippet`;
 
   return LiquidSnippet;

@@ -10,7 +10,6 @@ import { build as esbuild } from "esbuild";
 const args = process.argv.slice(2);
 const cmd = args[0] || "build";
 
-// Parse flags and options
 const flags: {
   verbose: boolean;
   watch: boolean;
@@ -26,7 +25,6 @@ const flags: {
   help: false,
 };
 
-// Parse arguments
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
 
@@ -108,18 +106,15 @@ async function loadConfig(customConfigPath?: string): Promise<any> {
         resolve(cwd, "preliquify.config.mjs"),
       ];
 
-  // Create a temporary directory for config compilation
   const tmpDir = await mkdtemp(join(tmpdir(), "preliquify-config-"));
 
   try {
     for (const configPath of possibleConfigs) {
       try {
         await fs.access(configPath);
-        // File exists, try to import it
         let importPath: string;
 
         if (configPath.endsWith(".ts")) {
-          // Transpile TS to ESM using esbuild
           const tmpOut = join(tmpDir, basename(configPath) + ".mjs");
           await esbuild({
             entryPoints: [configPath],
@@ -139,9 +134,7 @@ async function loadConfig(customConfigPath?: string): Promise<any> {
 
         return cfg;
       } catch (e: any) {
-        // File doesn't exist or can't be imported, try next
         if (e.code !== "ENOENT") {
-          // Log non-file-not-found errors for debugging
           if (flags.verbose) {
             console.warn(
               `[preliquify] Error loading config from ${configPath}:`,
@@ -155,18 +148,14 @@ async function loadConfig(customConfigPath?: string): Promise<any> {
 
     return null;
   } finally {
-    // Clean up temporary directory
     try {
       await fs.rm(tmpDir, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
+    } catch {}
   }
 }
 
 const cfg = (await loadConfig(flags.config)) ?? {};
 
-// Command-line flags override config file values
 const buildOptions = {
   srcDir: flags.srcDir ?? cfg.srcDir ?? resolve("src/snippets"),
   outLiquidDir: flags.outLiquidDir ?? cfg.outLiquidDir ?? resolve("snippets"),
@@ -194,7 +183,6 @@ if (flags.verbose) {
 try {
   await build(buildOptions);
 } catch (error: any) {
-  // Error formatting is handled by the build function
   if (flags.verbose && error.stack) {
     console.error("\nFull stack trace:", error.stack);
   }

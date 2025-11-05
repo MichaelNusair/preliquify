@@ -104,7 +104,6 @@ export function formatError(error: Error): string {
     return lines.join("\n");
   }
 
-  // Generic error
   return `\n❌ Error: ${error.message}`;
 }
 

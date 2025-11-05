@@ -1,5 +1,3 @@
-// Core type definitions for PreLiquify
-
 import type { ComponentType, JSX, VNode } from "preact";
 
 /**

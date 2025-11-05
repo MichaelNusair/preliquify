@@ -14,6 +14,5 @@ export function Hydrate({ id, component, props = {} }: HydrateProps) {
       />
     );
   }
-  // client runtime mounts automatically; nothing to do here at render time
   return null;
 }

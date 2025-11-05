@@ -1,13 +1,3 @@
-/**
- * SSR-Safe Utilities
- *
- * These utilities help write code that works in both SSR (server-side rendering)
- * and client-side contexts by properly guarding browser-only APIs.
- */
-
-/**
- * Check if code is running in SSR context (Node.js/server)
- */
 export function isSSR(): boolean {
   return (
     typeof window === "undefined" ||
@@ -16,17 +6,10 @@ export function isSSR(): boolean {
   );
 }
 
-/**
- * Check if code is running in browser context
- */
 export function isBrowser(): boolean {
   return typeof window !== "undefined" && !isSSR();
 }
 
-/**
- * SSR-safe localStorage access
- * Returns a no-op storage object during SSR
- */
 export function getLocalStorage():
   | Storage
   | {
@@ -52,9 +35,6 @@ export function getLocalStorage():
   return localStorage;
 }
 
-/**
- * SSR-safe window access
- */
 export function getWindow():
   | Window
   | {
@@ -84,9 +64,6 @@ export function getWindow():
   return window;
 }
 
-/**
- * SSR-safe document access
- */
 export function getDocument():
   | Document
   | {
@@ -105,13 +82,8 @@ export function getDocument():
   return document;
 }
 
-/**
- * SSR-safe HTMLElement instanceof check
- * Works even when HTMLElement is not available
- */
 export function isHTMLElement(value: any): boolean {
   if (isSSR()) {
-    // During SSR, check for common element-like properties
     return (
       value !== null &&
       typeof value === "object" &&
@@ -124,10 +96,6 @@ export function isHTMLElement(value: any): boolean {
   return typeof HTMLElement !== "undefined" && value instanceof HTMLElement;
 }
 
-/**
- * SSR-safe parseDataAttribute function
- * Handles Element or HTMLElement during SSR
- */
 export function parseDataAttribute(
   element: Element | { getAttribute?: (attr: string) => string | null } | null,
   attribute: string
@@ -143,7 +111,6 @@ export function parseDataAttribute(
   if (!value) return null;
 
   try {
-    // Decode URI-encoded JSON (if escaped)
     const decoded = decodeURIComponent(value);
     return JSON.parse(decoded);
   } catch (error) {
@@ -154,9 +121,6 @@ export function parseDataAttribute(
   }
 }
 
-/**
- * Safe access to object properties that might be undefined during SSR
- */
 export function safeGet<T>(obj: any, path: string, defaultValue: T): T {
   if (!obj) return defaultValue;
 

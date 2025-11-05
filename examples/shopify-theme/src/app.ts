@@ -1,7 +1,5 @@
-// Example: expose hydrated components globally for runtime bootstrap
 import { h } from "preact";
 import { render } from "preact";
-// import CartDrawer from './components/CartDrawer';
 
 declare global {
   interface Window {
@@ -10,4 +8,3 @@ declare global {
   }
 }
 window.preact = { h, render };
-// window.Preliquify = { CartDrawer };
