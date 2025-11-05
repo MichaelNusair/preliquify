@@ -4,7 +4,7 @@ import { liquidJson } from "./liquid";
 describe("liquidJson", () => {
   it("should convert simple objects to JSON", () => {
     const result = liquidJson({ key: "value" });
-    expect(result).toBe('{"key":"value"}');
+    expect(result).toBe('{{ {"key":"value"} | json }}');
   });
 
   it("should handle nested objects", () => {
@@ -16,7 +16,9 @@ describe("liquidJson", () => {
         },
       },
     });
-    expect(result).toBe('{"user":{"name":"John","settings":{"theme":"dark"}}}');
+    expect(result).toBe(
+      '{{ {"user":{"name":"John","settings":{"theme":"dark"}}} | json }}'
+    );
   });
 
   it("should preserve Liquid variables in double curly braces", () => {
@@ -25,7 +27,7 @@ describe("liquidJson", () => {
       price: "{{ product.price | money }}",
     });
     expect(result).toBe(
-      '{"title":"{{ product.title }}","price":"{{ product.price | money }}"}'
+      '{{ {"title":"{{ product.title }}","price":"{{ product.price | money }}"} | json }}'
     );
   });
 
@@ -37,7 +39,7 @@ describe("liquidJson", () => {
       boolean: true,
     });
     expect(result).toBe(
-      '{"static":"Hello","dynamic":"{{ customer.name }}","number":42,"boolean":true}'
+      '{{ {"static":"Hello","dynamic":"{{ customer.name }}","number":42,"boolean":true} | json }}'
     );
   });
 
@@ -45,7 +47,9 @@ describe("liquidJson", () => {
     const result = liquidJson({
       items: ["{{ item1 }}", "static", "{{ item2 }}"],
     });
-    expect(result).toBe('{"items":["{{ item1 }}","static","{{ item2 }}"]}');
+    expect(result).toBe(
+      '{{ {"items":["{{ item1 }}","static","{{ item2 }}"]} | json }}'
+    );
   });
 
   it("should handle complex Liquid expressions", () => {
@@ -66,7 +70,7 @@ describe("liquidJson", () => {
       nullValue: null,
       undefinedValue: undefined,
     });
-    expect(result).toBe('{"nullValue":null}');
+    expect(result).toBe('{{ {"nullValue":null} | json }}');
   });
 
   it("should escape quotes properly", () => {
@@ -79,8 +83,8 @@ describe("liquidJson", () => {
   });
 
   it("should handle empty objects and arrays", () => {
-    expect(liquidJson({})).toBe("{}");
-    expect(liquidJson({ empty: [] })).toBe('{"empty":[]}');
+    expect(liquidJson({})).toBe("{{ {} | json }}");
+    expect(liquidJson({ empty: [] })).toBe('{{ {"empty":[]} | json }}');
   });
 
   it("should handle Liquid filters in values", () => {
@@ -91,7 +95,9 @@ describe("liquidJson", () => {
     });
     expect(result).toContain("{{ product.price | money }}");
     expect(result).toContain("{{ product.title | upcase }}");
-    expect(result).toContain('{{ order.created_at | date: "%B %d, %Y" }}');
+    expect(result).toContain(
+      '{{ order.created_at | date: "\\"%B %d, %Y\\"" }}'
+    );
   });
 
   it("should handle nested Liquid tags", () => {

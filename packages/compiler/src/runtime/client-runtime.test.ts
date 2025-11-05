@@ -95,11 +95,15 @@ describe("Client Runtime", () => {
     const props = window.parseProps(el);
 
     expect(props).toEqual({});
-    expect(warnSpy).toHaveBeenCalledWith(
-      "[Preliquify] Failed to parse props:",
-      "invalid-json",
-      expect.any(Error)
-    );
+    expect(warnSpy).toHaveBeenCalled();
+    const calls = warnSpy.mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    const call = calls[0];
+    expect(call[0]).toBe("[Preliquify] Failed to parse props:");
+    expect(call[1]).toBe("invalid-json");
+    // The error might be wrapped in an array by the test framework
+    const errorArg = Array.isArray(call[2]) ? call[2][0] : call[2];
+    expect(errorArg).toBeInstanceOf(Error);
   });
 
   it("should check element visibility correctly", () => {
