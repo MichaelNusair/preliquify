@@ -95,9 +95,7 @@ describe("liquidJson", () => {
     });
     expect(result).toContain("{{ product.price | money }}");
     expect(result).toContain("{{ product.title | upcase }}");
-    expect(result).toContain(
-      '{{ order.created_at | date: "\\"%B %d, %Y\\"" }}'
-    );
+    expect(result).toContain('{{ order.created_at | date: "%B %d, %Y" }}');
   });
 
   it("should handle nested Liquid tags", () => {

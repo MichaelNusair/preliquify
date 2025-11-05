@@ -101,9 +101,12 @@ describe("Client Runtime", () => {
     const call = calls[0];
     expect(call[0]).toBe("[Preliquify] Failed to parse props:");
     expect(call[1]).toBe("invalid-json");
-    // The error might be wrapped in an array by the test framework
+    // The error from eval'd code might not be instanceof Error due to different realms,
+    // but it should have error-like properties
     const errorArg = Array.isArray(call[2]) ? call[2][0] : call[2];
-    expect(errorArg).toBeInstanceOf(Error);
+    expect(errorArg).toBeDefined();
+    expect(errorArg).toHaveProperty("message");
+    expect(errorArg.message).toContain("Unexpected token");
   });
 
   it("should check element visibility correctly", () => {
