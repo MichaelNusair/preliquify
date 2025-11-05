@@ -10,6 +10,11 @@ function isLiquidExpression(value: any): boolean {
   );
 }
 
+// Check if any props are Liquid expressions (meaning we're at build time)
+function hasLiquidExpressions(props: Record<string, any>): boolean {
+  return Object.values(props).some(isLiquidExpression);
+}
+
 type PropMapping =
   | string // Liquid variable name (same as prop name)
   | {
@@ -114,11 +119,27 @@ export function createLiquidSnippet<P extends Record<string, any>>(
 
     liquidExpr += `{% assign _json = _json | append: '}' %}{{ _json }}`;
 
-    // During SSR (liquid target), render the actual component with hydration wrapper
-    // The component will receive props as Liquid expressions, which Liquid will process
-    // when Shopify renders the template. For now, we render the component with the expressions.
+    // During SSR (liquid target), check if props are Liquid expressions
+    // If they are, we're at build time and should render a placeholder
+    // If they aren't, we're at runtime (Shopify has processed them) and can render the component
     const target = useTarget();
     if (target === "liquid") {
+      // If props contain Liquid expressions, we're at build time
+      // Render placeholder to avoid errors (component can't process Liquid expression strings)
+      if (hasLiquidExpressions(props)) {
+        return (
+          <div data-preliq-island={componentName} data-preliq-id={id}>
+            <script
+              type="application/json"
+              data-preliq-props=""
+              dangerouslySetInnerHTML={{ __html: rawLiquid(liquidExpr) }}
+            />
+            {placeholder}
+          </div>
+        );
+      }
+
+      // Props are actual data (Shopify processed them), render the component
       return (
         <div data-preliq-island={componentName} data-preliq-id={id}>
           <script
@@ -126,7 +147,6 @@ export function createLiquidSnippet<P extends Record<string, any>>(
             data-preliq-props=""
             dangerouslySetInnerHTML={{ __html: rawLiquid(liquidExpr) }}
           />
-          {/* Render the actual component - props are Liquid expressions that Liquid will process */}
           <Component {...props} />
         </div>
       );
