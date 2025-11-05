@@ -2,32 +2,20 @@
 
 ## [1.1.11] - 2024-11-05
 
-### Added
-- Automatic client bundle generation (`.bundle.js` files)
-- Auto-registration code in bundles (handles race conditions)
+### Features
+- Automatic client bundle generation with auto-registration
 - Smart compilation (only files with `createLiquidSnippet`)
 - Entry point scanning and validation
 - Render function support in `<For />` component
-- Proxy-based property access in `<For />` (auto-generates Liquid expressions)
+- Proxy-based property access for Liquid expressions
 
-### Changed
-- `srcDir` deprecated in favor of `entryPoint`
-- Scan results are source of truth (config validates)
-- Build output shows snippet vs library file counts
+### Configuration
+- `entryPoint` config (replaces `srcDir`)
+- `generateClientBundles` option (default: true)
+- `minify` option (default: true)
 
-### Fixed
-- `<For />` loops now generate correctly (TargetProvider context isolation)
-- `createLiquidSnippet` now renders components during compilation
-- Scoped package resolution in monorepos
-- Runtime detection includes `createLiquidSnippet` components
-
-## [1.1.8] - 2024-11-05
-
-### Fixed
-- `<For />` component Liquid loop generation
-- `TargetProvider` context sharing between compiler and components
-- `createLiquidSnippet` rendering during Liquid compilation
-
-## [0.2.1] - 2024-10-15
-
-Initial release.
+### Fixes
+- `<For />` loops generate correctly
+- `TargetProvider` context isolation
+- `createLiquidSnippet` renders during compilation
+- Runtime detection includes all hydration scenarios

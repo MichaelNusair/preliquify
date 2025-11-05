@@ -1,8 +1,8 @@
-# Client Bundle Generation
+# Client Bundles
 
 ## Overview
 
-Preliquify automatically generates client-side component bundles with auto-registration.
+Preliquify generates client bundles automatically with auto-registration.
 
 ## Build Output
 
@@ -14,47 +14,25 @@ $ preliquify build
 ```
 
 **Files:**
-- `preliquify-prlq.runtime.js` - Shared hydration framework (~4 KB)
-- `{ComponentName}-prlq.bundle.js` - Per-component bundles with auto-registration (~1-2 KB each)
+- `preliquify-prlq.runtime.js` - Shared hydration runtime (~4 KB)
+- `{ComponentName}-prlq.bundle.js` - Component + registration (~1-2 KB each)
 
 ## Usage
-
-### Theme Setup
 
 ```liquid
 <!-- theme.liquid -->
 <script src="https://unpkg.com/preact@10/dist/preact.umd.js"></script>
 <script>window.preact = { h: preactUmd.h, render: preactUmd.render };</script>
 <script src="{{ 'preliquify-prlq.runtime.js' | asset_url }}" defer></script>
-<script src="{{ 'MediaGalleryWidget-prlq.bundle.js' | asset_url }}" defer></script>
+<script src="{{ 'MediaGallery-prlq.bundle.js' | asset_url }}" defer></script>
 ```
-
-### Render Snippet
-
-```liquid
-{% render 'MediaGalleryWidget-prlq', media: product.media %}
-```
-
-Component auto-registers and hydrates.
-
-## Configuration
-
-```typescript
-// preliquify.config.ts
-export default {
-  generateClientBundles: true,  // Default: true
-  minify: true,                 // Default: true
-};
-```
-
-Set `generateClientBundles: false` for SSR-only builds.
 
 ## Auto-Registration
 
-Each bundle includes registration code:
+Each bundle auto-registers on load:
 
 ```javascript
-// Auto-generated in each bundle
+// Auto-generated
 (function() {
   function registerComponent() {
     if (window.__PRELIQUIFY__?.register) {
@@ -72,36 +50,44 @@ Each bundle includes registration code:
 })();
 ```
 
-Handles race conditions automatically - works with `defer`, `async`, or normal script tags.
+Handles race conditions. Works with `defer`, `async`, or normal script tags.
 
-## Performance
+## Configuration
 
-- SSR content displays immediately (0 ms)
-- Hydration completes in 10-50 ms
-- Total JS: ~12 KB (4 KB runtime + 4 KB Preact + 1-2 KB per component)
-- All files minified and tree-shaken
+```typescript
+export default {
+  generateClientBundles: true,  // Default: true
+  minify: true,                 // Default: true
+};
+```
+
+Set `generateClientBundles: false` for SSR-only.
 
 ## Conditional Loading
 
 ```liquid
 {% if template contains 'product' %}
-  <script src="{{ 'MediaGalleryWidget-prlq.bundle.js' | asset_url }}" defer></script>
+  <script src="{{ 'MediaGallery-prlq.bundle.js' | asset_url }}" defer></script>
 {% endif %}
 ```
 
-## Troubleshooting
+## Bundle Sizes
 
-**Bundle not loading:**
-```javascript
-console.log(window.__PRELIQUIFY__); // Should exist
-```
+- Runtime: ~4 KB (shared)
+- Per component: ~1-2 KB
+- Preact: ~4 KB (CDN)
 
-**Component not registered:**
-```javascript
-window.__PRELIQUIFY__.getComponent('ComponentName'); // Should return component
-```
+Total: ~10-15 KB for typical page with 3 components.
 
-**Hydration errors:**
+## Debugging
+
 ```javascript
-window.__PRELIQUIFY__.getErrors(); // Check for errors
+// Check runtime loaded
+window.__PRELIQUIFY__
+
+// Check component registered
+window.__PRELIQUIFY__.getComponent('ComponentName')
+
+// Check errors
+window.__PRELIQUIFY__.getErrors()
 ```

@@ -1,15 +1,14 @@
 /**
  * Configuration types for PreLiquify
  *
- * Import this type in your preliquify.config.ts for type safety:
- *
+ * @example
  * ```ts
  * import type { PreliquifyConfig } from "@preliquify/cli";
  *
  * const config: PreliquifyConfig = {
- *   srcDir: "src/snippets",
- *   outLiquidDir: "snippets",
- *   outClientDir: "assets",
+ *   entryPoint: "./src/snippets",
+ *   outLiquidDir: "./snippets",
+ *   outClientDir: "./assets",
  * };
  *
  * export default config;

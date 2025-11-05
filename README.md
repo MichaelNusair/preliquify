@@ -1,362 +1,235 @@
 # Preliquify
 
-Build Shopify Liquid snippets using React/Preact components. Write your theme snippets in TypeScript/JSX and compile them to Liquid template files with automatic client-side hydration.
+Compile Preact components to Shopify Liquid templates with automatic client-side hydration.
 
 ## Features
 
-- ✅ **One Command Build** - `preliquify build` generates everything
-- ✅ **Auto-Bundling** - Automatic client component bundles
-- ✅ **Auto-Registration** - No boilerplate code needed
-- ✅ **Smart Compilation** - Only bundles files with `createLiquidSnippet`
-- ✅ **SSR + Hydration** - Server-side rendering with client interactivity
-- ✅ **Liquid Primitives** - `<For>`, `<Conditional>`, etc. compile to native Liquid
-- ✅ **Type Safety** - Full TypeScript support
-- ✅ **Hot Reload** - Watch mode for rapid development
+- **SSR + Hydration** - Server-render Liquid templates, hydrate with Preact on client
+- **Liquid Primitives** - `<For>`, `<Conditional>` compile to native Liquid loops/conditionals
+- **Auto-Bundling** - Generates component bundles with registration automatically
+- **Smart Compilation** - Only compiles files using `createLiquidSnippet`
+- **Type-Safe** - Full TypeScript support
 
 ## Installation
 
 ```bash
-npm install -D @preliquify/cli
-# or
-pnpm add -D @preliquify/cli
-# or
-yarn add -D @preliquify/cli
+pnpm add -D @preliquify/cli @preliquify/preact
 ```
 
 ## Quick Start
 
-1. **Create a config file** (`preliquify.config.ts`):
+**1. Config** (`preliquify.config.ts`):
 
 ```typescript
-import type { PreliquifyConfig } from "@preliquify/cli";
+import type { PreliquifyConfig } from '@preliquify/cli';
 
-const config: PreliquifyConfig = {
-  entryPoint: "src/snippets", // Directory to scan for snippets
-  outLiquidDir: "snippets",
-  outClientDir: "assets",
+export default {
+  entryPoint: './src/snippets',
+  outLiquidDir: './snippets',
+  outClientDir: './assets',
 };
-
-export default config;
 ```
 
-**Note**: Only files using `createLiquidSnippet` are compiled to `.liquid` files.
-Other files are automatically bundled as library components.
-
-2. **Write a component** (`src/snippets/ProductCard.tsx`):
+**2. Component** (`src/snippets/ProductCard.tsx`):
 
 ```tsx
-/** @jsxImportSource preact */
-import { createLiquidSnippet } from "@preliquify/preact";
+import { createLiquidSnippet } from '@preliquify/preact';
 
-interface ProductCardProps {
-  product: any;
-  showPrice?: boolean;
-}
-
-function ProductCard({ product, showPrice = true }: ProductCardProps) {
+function ProductCard({ product }) {
   return (
-    <div className="product-card">
+    <div className="card">
       <h3>{product.title}</h3>
-      {showPrice && <div className="price">${product.price}</div>}
+      <p>${product.price}</p>
     </div>
   );
 }
 
 export default createLiquidSnippet(ProductCard, {
-  product: "product",
-  showPrice: { liquidVar: "showPrice", default: true }
+  product: 'product'
 });
 ```
 
-3. **Build**:
+**3. Build:**
 
 ```bash
-npx preliquify build
+pnpm preliquify build
 ```
 
-This generates `snippets/ProductCard.liquid` that you can use in Shopify:
+**Generates:**
+- `snippets/ProductCard-prlq.liquid`
+- `assets/ProductCard-prlq.bundle.js`
+- `assets/preliquify-prlq.runtime.js`
 
-```liquid
-{% render 'ProductCard', product: product, showPrice: true %}
-```
-
-## How It Works
-
-1. **Write your component once** with normal props
-2. **Use `createLiquidSnippet`** to map props to Liquid variables
-3. **Run `preliquify build`** - generates everything automatically:
-   - `.liquid` files (SSR templates)
-   - `preliquify-prlq.runtime.js` (hydration framework)
-   - `.bundle.js` files (component code with auto-registration)
-4. **Include scripts** in your theme layout (one-time setup)
-5. **Render snippets** - they auto-hydrate with full interactivity
-
-## Complete Example
-
-### Your Component
-
-```tsx
-// src/snippets/MediaGallery.tsx
-import { For, $, createLiquidSnippet } from '@preliquify/preact';
-
-function MediaGallery({ media }) {
-  return (
-    <div className="gallery">
-      <For each={$.var('media')} as="item">
-        {(item, i) => (
-          <img key={i} src={item.src} alt={item.alt} />
-        )}
-      </For>
-    </div>
-  );
-}
-
-export default createLiquidSnippet(MediaGallery, {
-  media: 'media'
-});
-```
-
-### Build
-
-```bash
-$ pnpm preliquify build
-
-✅ Generated client runtime: assets/preliquify-prlq.runtime.js
-📦 Generated 1 client bundle(s)
-✅ Successfully compiled 1 component(s)
-```
-
-### Theme Setup (One Time)
+**4. Theme setup** (one-time):
 
 ```liquid
 <!-- theme.liquid -->
 <script src="https://unpkg.com/preact@10/dist/preact.umd.js"></script>
 <script>window.preact = { h: preactUmd.h, render: preactUmd.render };</script>
 <script src="{{ 'preliquify-prlq.runtime.js' | asset_url }}" defer></script>
-<script src="{{ 'MediaGallery-prlq.bundle.js' | asset_url }}" defer></script>
+<script src="{{ 'ProductCard-prlq.bundle.js' | asset_url }}" defer></script>
 ```
 
-### Use the Snippet
+**5. Use:**
 
 ```liquid
-<!-- product.liquid -->
-{% render 'MediaGallery-prlq', media: product.media %}
+{% render 'ProductCard-prlq', product: product %}
 ```
 
-**Result:**
-- Server renders `{% for %}` loops immediately
-- Client hydrates with full React interactivity
-- No manual configuration needed!
+## Liquid Primitives
 
-## Component Patterns
-
-### Components with Props (Recommended)
-
-Use `createLiquidSnippet` - just write your component once:
+### For Loops
 
 ```tsx
-import { createLiquidSnippet } from "@preliquify/preact";
+import { For, $ } from '@preliquify/preact';
 
-function MyComponent({ product, collection }: Props) {
-  return <div>{product.title}</div>;
-}
-
-export default createLiquidSnippet(MyComponent, {
-  product: "product",  // prop name → Liquid variable name
-  collection: "collection",
-  showPrice: { liquidVar: "showPrice", default: true }  // with default
-});
+<For each={$.var('products')} as="product">
+  {(product, i) => (
+    <div key={i}>
+      <img src={product.image} />
+      <h3>{product.title}</h3>
+    </div>
+  )}
+</For>
 ```
 
-### Components with Liquid Expressions
+Compiles to:
 
-For components that use Liquid expressions directly:
+```liquid
+{% for product in products %}
+  <div>
+    <img src="{{ product.image }}" />
+    <h3>{{ product.title }}</h3>
+  </div>
+{% endfor %}
+```
+
+### Conditionals
 
 ```tsx
-/** @jsxImportSource preact */
-import { Conditional, For } from "@preliquify/preact";
-import { $ } from "@preliquify/core";
+import { Conditional, $ } from '@preliquify/preact';
 
-export default function Hero() {
-  return (
-    <section>
-      <Conditional when={$.var("customer.email")}>
-        <p>Welcome back!</p>
-      </Conditional>
-      
-      <For each={$.var("collections.frontpage.products")} as="p">
-        <div>{p.title}</div>
-      </For>
-    </section>
-  );
-}
+<Conditional when={$.var('customer.logged_in')}>
+  <p>Welcome, {{ customer.name }}!</p>
+</Conditional>
+```
+
+Compiles to:
+
+```liquid
+{% if customer.logged_in %}
+  <p>Welcome, {{ customer.name }}!</p>
+{% endif %}
+```
+
+### Expressions
+
+```tsx
+import { $ } from '@preliquify/preact';
+
+// Variables
+$.var('product.title')
+
+// Literals
+$.lit('hello')
+
+// Comparisons
+$.eq($.var('type'), $.lit('shirt'))
+
+// Logical
+$.and($.var('a'), $.var('b'))
+$.or($.var('a'), $.var('b'))
+$.not($.var('hidden'))
+
+// Contains
+$.contains($.var('tags'), $.lit('sale'))
 ```
 
 ## Configuration
 
-### Config File
-
 ```typescript
-import type { PreliquifyConfig } from "@preliquify/cli";
-
-const config: PreliquifyConfig = {
-  srcDir: "src/snippets",        // Source directory
-  outLiquidDir: "snippets",       // Output Liquid directory
-  outClientDir: "assets",         // Output assets directory
-  jsxImportSource: "preact",      // JSX import source
-  watch: false,                  // Enable watch mode
-  verbose: false,                 // Detailed error output
+export default {
+  entryPoint: './src/snippets',      // Required: where to scan
+  outLiquidDir: './snippets',        // Required: Liquid output
+  outClientDir: './assets',          // Required: JS output
+  
+  generateClientBundles: true,       // Default: true
+  minify: true,                      // Default: true
+  suffixDistFiles: true,             // Default: true (adds -prlq)
+  verbose: false,                    // Default: false
+  watch: false,                      // Default: false
 };
-
-export default config;
 ```
 
-### Command-Line Options
+### Entry Point Options
+
+```typescript
+// Single directory
+entryPoint: './src/snippets'
+
+// Multiple directories
+entryPoint: ['./src/snippets', './src/blocks']
+
+// Specific files
+entryPoint: ['./src/ProductCard.tsx', './src/Hero.tsx']
+
+// Glob pattern
+entryPoint: './src/**/*.snippet.tsx'
+```
+
+## File Organization
+
+```
+src/
+  snippets/              # createLiquidSnippet files → compiled
+    ProductCard.tsx
+    MediaGallery.tsx
+    
+  components/            # Regular components → bundled
+    ProductImage.tsx
+    Gallery.tsx
+```
+
+Only `snippets/` files with `createLiquidSnippet` are compiled. Components are auto-bundled.
+
+## CLI
 
 ```bash
-preliquify build --watch              # Watch for changes
-preliquify build --verbose             # Show detailed errors
-preliquify build --src-dir ./src      # Override source directory
-preliquify build --config ./custom.ts # Custom config file
+preliquify build              # Build once
+preliquify build --watch      # Watch mode
+preliquify build --verbose    # Detailed output
 ```
 
-## Core Features
+## How It Works
 
-### Liquid Expressions
+1. Scans `entryPoint` for files with `createLiquidSnippet`
+2. Renders components with `TargetProvider` set to "liquid"
+3. Generates `.liquid` templates with hydration metadata
+4. Bundles components to `.bundle.js` with auto-registration
+5. Generates shared `preliquify-prlq.runtime.js`
 
-Build Liquid expressions using the `$` helper:
-
-```tsx
-import { $ } from "@preliquify/core";
-
-// Variables
-$.var("product.title")
-$.var("customer.email")
-
-// Literals
-$.lit("hello")
-$.lit(42)
-$.lit(true)
-
-// Operators
-$.contains($.var("tags"), $.lit("sale"))
-$.equals($.var("count"), $.lit(0))
-```
-
-### Primitives
-
-Components that compile to Liquid:
-
-- **`Conditional`**: Renders `{% if %}` blocks
-- **`For`**: Renders `{% for %}` loops
-- **`Choose`**: Renders `{% case %}` statements
-- **`Hydrate`**: Creates interactive islands for client-side hydration
-
-### createLiquidSnippet Options
-
-```tsx
-export default createLiquidSnippet(Component, propMapping, {
-  componentName: "MyComponent",  // Component name for hydration
-  id: "my-component",           // ID for hydration island
-  placeholder: <div>Loading...</div>  // Placeholder shown at build time
-});
-```
-
-## Usage in Shopify
-
-Pass parameters when rendering the snippet:
-
-```liquid
-{% render 'ProductCard', 
-   product: product, 
-   collection: collection,
-   showPrice: true 
-%}
-```
-
-The parameter names must match the Liquid variable names in your `createLiquidSnippet` mapping.
-
-## SSR Compatibility
-
-Components are rendered server-side during build. Code accessing browser APIs is automatically polyfilled:
-
-- `window`, `document`, `localStorage`
-- `HTMLElement`, `Element`
-- `IntersectionObserver`, `requestIdleCallback`
-
-For manual guards:
-
-```typescript
-if (typeof window !== 'undefined') {
-  // Browser-only code
-}
-```
+At runtime:
+1. Liquid renders SSR content
+2. Runtime discovers `[data-preliq-island]` elements
+3. Bundles register components
+4. Runtime hydrates islands with props from `data-preliq-props`
 
 ## Documentation
 
-For detailed documentation, see the [docs](./docs/) folder:
-
-- **[Quick Reference](./docs/quick-reference.md)** - Cheat sheet for common patterns
-- **[Getting Started](./docs/getting-started.md)** - Installation and tutorial
-- **[Entry Points](./docs/entry-points.md)** - Smart compilation and organization
-- **[Client Bundles](./docs/client-bundles.md)** - Auto-bundling and registration
-- **[Primitives](./docs/primitives.md)** - Complete guide to Liquid primitives
-- **[Best Practices](./docs/best-practices.md)** - Guidelines for maintainable code
-- **[Upgrade Guide](./UPGRADE_GUIDE.md)** - Migration from earlier versions
-- **[API Reference](./docs/README.md)** - Full API documentation
+- [Quick Reference](./docs/quick-reference.md) - Common patterns
+- [Entry Points](./docs/entry-points.md) - File organization
+- [Client Bundles](./docs/client-bundles.md) - Bundling & hydration
+- [Primitives](./docs/primitives.md) - Liquid components
+- [Best Practices](./docs/best-practices.md) - Patterns
 
 ## Development
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Build all packages
 pnpm build
-
-# Run tests
 pnpm test
-
-# Run linter
-pnpm lint
-
-# Format code
-pnpm format
 ```
-
-### Contributing
-
-We welcome contributions! Please read our [Contributing Guide](./CONTRIBUTING.md) for details on:
-
-- Development workflow
-- Code style guidelines
-- Testing requirements
-- Pull request process
-
-### Project Structure
-
-```
-preliquify/
-├── packages/
-│   ├── cli/          # Command-line interface
-│   ├── compiler/     # Core compiler logic
-│   ├── core/         # Primitives and utilities
-│   └── preact/       # Preact-specific bindings
-├── docs/            # Documentation
-├── examples/        # Example projects
-└── test/           # Shared test utilities
-```
-
-## Changelog
-
-See [CHANGELOG.md](./CHANGELOG.md) for version history and changes.
 
 ## License
 
 MIT
-
----
-
-**Made with ❤️ for Shopify theme developers**
-
-For questions, issues, or feature requests, please visit our [GitHub Issues](https://github.com/MichaelNusair/preliquify/issues).
