@@ -3,6 +3,13 @@ import { useTarget } from "../runtime.js";
 import { rawLiquid } from "../liquid.js";
 import type { ComponentType } from "preact";
 
+// Helper to check if a value is a Liquid expression string
+function isLiquidExpression(value: any): boolean {
+  return (
+    typeof value === "string" && (value.includes("{{") || value.includes("{%"))
+  );
+}
+
 type PropMapping =
   | string // Liquid variable name (same as prop name)
   | {
@@ -107,18 +114,26 @@ export function createLiquidSnippet<P extends Record<string, any>>(
 
     liquidExpr += `{% assign _json = _json | append: '}' %}{{ _json }}`;
 
-    // Output props as script tag content (not attribute) to avoid HTML escaping
-    // Script tag is created via JSX, Liquid expression outputs JSON content
-    return (
-      <div data-preliq-island={componentName} data-preliq-id={id}>
-        <script
-          type="application/json"
-          data-preliq-props=""
-          dangerouslySetInnerHTML={{ __html: rawLiquid(liquidExpr) }}
-        />
-        {placeholder}
-      </div>
-    );
+    // During SSR (liquid target), render the actual component with hydration wrapper
+    // The component will receive props as Liquid expressions, which Liquid will process
+    // when Shopify renders the template. For now, we render the component with the expressions.
+    const target = useTarget();
+    if (target === "liquid") {
+      return (
+        <div data-preliq-island={componentName} data-preliq-id={id}>
+          <script
+            type="application/json"
+            data-preliq-props=""
+            dangerouslySetInnerHTML={{ __html: rawLiquid(liquidExpr) }}
+          />
+          {/* Render the actual component - props are Liquid expressions that Liquid will process */}
+          <Component {...props} />
+        </div>
+      );
+    }
+
+    // During client-side rendering, render the component normally
+    return <Component {...props} />;
   }
 
   function LiquidSnippet() {

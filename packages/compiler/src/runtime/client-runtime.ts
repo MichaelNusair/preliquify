@@ -66,11 +66,24 @@ function parseProps(element: Element): Record<string, any> {
   if (scriptTag) {
     try {
       const content = scriptTag.textContent || "";
-      if (content.trim()) {
-        return JSON.parse(content);
+      const trimmed = content.trim();
+      if (trimmed) {
+        // Check if content still has Liquid tags (means Liquid wasn't processed)
+        if (trimmed.includes("{%") || trimmed.includes("{{")) {
+          console.warn(
+            "[Preliquify] Script tag contains Liquid expressions - Liquid may not have processed this template. Content:",
+            trimmed.substring(0, 200)
+          );
+          return {};
+        }
+        return JSON.parse(trimmed);
       }
     } catch (error) {
       console.warn("[Preliquify] Failed to parse props from script:", error);
+      console.warn(
+        "[Preliquify] Script content:",
+        scriptTag.textContent?.substring(0, 200)
+      );
     }
   }
 
@@ -162,6 +175,14 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
 
   if (!Component) {
     console.warn(`[Preliquify] Component "${componentName}" not found`);
+    console.warn(
+      `[Preliquify] Available components:`,
+      Array.from(runtime.components.keys())
+    );
+    console.warn(
+      `[Preliquify] Available in window.Preliquify:`,
+      Object.keys(window.Preliquify || {})
+    );
     element.setAttribute("data-preliq-error", "component-not-found");
     return;
   }
