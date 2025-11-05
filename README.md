@@ -30,6 +30,7 @@ export default config;
 
 2. Write a component (`src/snippets/Hero.tsx`):
 
+For components that use Liquid expressions directly:
 ```tsx
 /** @jsxImportSource preact */
 import { Conditional, For, Hydrate } from "@preliquify/preact";
@@ -58,6 +59,21 @@ export default function Hero() {
     </section>
   );
 }
+```
+
+For components that receive props (simplified with `createLiquidSnippet`):
+```tsx
+/** @jsxImportSource preact */
+import { createLiquidSnippet } from "@preliquify/preact";
+
+function ProductCard({ product, showPrice }: { product: any; showPrice?: boolean }) {
+  return <div>{product.title}</div>;
+}
+
+export default createLiquidSnippet(ProductCard, {
+  product: "product",
+  showPrice: { liquidVar: "showPrice", default: true }
+});
 ```
 
 3. Build:
@@ -147,7 +163,31 @@ Preliquify provides components that compile to Liquid:
 
 ### Component Structure
 
-Components follow a three-layer pattern:
+#### Simple Approach (Recommended)
+
+Use `createLiquidSnippet` to automatically generate the SSR wrapper and default export:
+
+```tsx
+import { createLiquidSnippet } from "@preliquify/preact";
+
+function ProductCard({ product, showPrice = true }: ProductCardProps) {
+  return <div>{product.title}</div>;
+}
+
+export default createLiquidSnippet(ProductCard, {
+  product: "product",  // Liquid variable name
+  showPrice: { liquidVar: "showPrice", default: true }
+});
+```
+
+This automatically:
+- Creates the SSR wrapper with `data-preliq-island` and `data-preliq-props`
+- Creates the default export that maps Liquid variables to props
+- Handles placeholder rendering at build time
+
+#### Manual Approach
+
+Components can also follow a three-layer pattern:
 
 1. **Default export**: Maps Liquid variables to props
 2. **SSR wrapper**: Adds data attributes for hydration
@@ -165,6 +205,13 @@ function ProductCard(props: ProductCardProps) {
   );
 }
 
+// Using createLiquidSnippet (recommended):
+export default createLiquidSnippet(ProductCard, {
+  product: "product",
+  showPrice: { liquidVar: "showPrice", default: true }
+});
+
+// Or manually:
 function ProductCardSSR(props: ProductCardProps) {
   const target = useTarget();
   if (target === "liquid") {
@@ -274,6 +321,27 @@ What doesn't happen:
 - Props must be explicitly passed in JSX
 
 ## Snippet Parameters
+
+### Using createLiquidSnippet (Recommended)
+
+The easiest way to create Liquid snippets is with `createLiquidSnippet`. Just write your component with normal props, and it handles everything:
+
+```tsx
+import { createLiquidSnippet } from "@preliquify/preact";
+
+function ProductCard({ product, showPrice = true }: ProductCardProps) {
+  return <div>{product.title}</div>;
+}
+
+export default createLiquidSnippet(ProductCard, {
+  product: "product",  // prop name → Liquid variable name
+  showPrice: { liquidVar: "showPrice", default: true }  // with default
+});
+```
+
+That's it! No SSR wrapper, no default export mapping - just write your component once.
+
+### Manual Approach
 
 Parameters passed via `{% render %}` become Liquid variables inside the snippet scope. Reference them in your component's default export:
 
