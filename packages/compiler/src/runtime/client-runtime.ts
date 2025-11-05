@@ -61,6 +61,20 @@ function safeHydrate(
 }
 
 function parseProps(element: Element): Record<string, any> {
+  // First try to read from script tag (avoids HTML escaping issues)
+  const scriptTag = element.querySelector("script[data-preliq-props]");
+  if (scriptTag) {
+    try {
+      const content = scriptTag.textContent || "";
+      if (content.trim()) {
+        return JSON.parse(content);
+      }
+    } catch (error) {
+      console.warn("[Preliquify] Failed to parse props from script:", error);
+    }
+  }
+
+  // Fallback to data attribute (backward compatibility)
   const propsAttr = element.getAttribute("data-preliq-props");
   if (!propsAttr) return {};
 

@@ -64,10 +64,12 @@ export function createLiquidSnippet<P extends Record<string, any>>(
 
     const escapedFirstPropName = firstPropName.replace(/'/g, "''");
 
-    // Build JSON using the same pattern as ProductCard - single quotes with double quotes inside
-    // Despite HTML escaping to &quot;, this pattern works because Liquid processes before HTML
-    // The key is that Liquid parses the source file, not the rendered HTML
-    let liquidExpr = `{{ '{"${firstPropName}":' | append: (${firstLiquidVar}`;
+    // Build JSON using Liquid assigns - output as script tag content to avoid HTML escaping
+    // Extract quote character from a string to avoid literal quotes that get HTML-escaped
+    let liquidExpr = `{% assign _q = 'a"b' | split: 'a' | last | split: 'b' | first %}`;
+    liquidExpr += `{% assign _json = '{' %}`;
+    liquidExpr += `{% assign _json = _json | append: _q | append: '${escapedFirstPropName}' | append: _q | append: ':' %}`;
+    liquidExpr += `{% assign _json = _json | append: (${firstLiquidVar}`;
     if (firstDefault !== undefined) {
       const defaultStr =
         typeof firstDefault === "string"
@@ -75,7 +77,7 @@ export function createLiquidSnippet<P extends Record<string, any>>(
           : String(firstDefault);
       liquidExpr += ` | default: ${defaultStr}`;
     }
-    liquidExpr += ` | json | escape)`;
+    liquidExpr += ` | json | escape) %}`;
 
     for (let i = 1; i < propEntries.length; i++) {
       const [propName, mapping] = propEntries[i];
@@ -87,7 +89,7 @@ export function createLiquidSnippet<P extends Record<string, any>>(
           : undefined;
 
       const escapedPropName = String(propName).replace(/'/g, "''");
-      liquidExpr += ` | append: ',"${escapedPropName}":' | append: (${liquidVar}`;
+      liquidExpr += `{% assign _json = _json | append: ',' | append: _q | append: '${escapedPropName}' | append: _q | append: ':' | append: (${liquidVar}`;
       if (defaultValue !== undefined) {
         const defaultStr =
           typeof defaultValue === "string"
@@ -95,17 +97,20 @@ export function createLiquidSnippet<P extends Record<string, any>>(
             : String(defaultValue);
         liquidExpr += ` | default: ${defaultStr}`;
       }
-      liquidExpr += ` | json | escape)`;
+      liquidExpr += ` | json | escape) %}`;
     }
 
-    liquidExpr += ` | append: '}' }}`;
+    liquidExpr += `{% assign _json = _json | append: '}' %}{{ _json }}`;
 
+    // Output props as script tag content (not attribute) to avoid HTML escaping
+    // Script tag is created via JSX, Liquid expression outputs JSON content
     return (
-      <div
-        data-preliq-island={componentName}
-        data-preliq-id={id}
-        data-preliq-props={rawLiquid(liquidExpr)}
-      >
+      <div data-preliq-island={componentName} data-preliq-id={id}>
+        <script
+          type="application/json"
+          data-preliq-props=""
+          dangerouslySetInnerHTML={{ __html: rawLiquid(liquidExpr) }}
+        />
         {placeholder}
       </div>
     );
