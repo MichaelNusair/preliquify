@@ -1,6 +1,7 @@
 /**
  * Constants used throughout the compiler
  */
+import type { BuildOptions } from "esbuild";
 
 /**
  * External packages that should not be bundled
@@ -77,14 +78,14 @@ export const ESBUILD_COMPONENT_CONFIG = {
 /**
  * esbuild configuration for client runtime
  */
-export const ESBUILD_RUNTIME_CONFIG = {
-  format: "iife" as const,
-  platform: "browser" as const,
+export const ESBUILD_RUNTIME_CONFIG: BuildOptions = {
+  format: "iife",
+  platform: "browser",
   minify: true,
   target: ["es2015"],
   treeShaking: true,
   mangleProps: /^_/,
-  legalComments: "none" as const,
+  legalComments: "none",
   pure: ["console.log"],
   drop: ["debugger"],
   globalName: "PreliquifyRuntime",
