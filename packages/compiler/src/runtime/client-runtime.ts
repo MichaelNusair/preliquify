@@ -57,12 +57,19 @@ function safeHydrate(
   }
 }
 
+function decodeHtmlEntities(text: string): string {
+  // Create a temporary element to decode HTML entities
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = text;
+  return textarea.value;
+}
+
 function parseProps(element: Element): Record<string, any> {
   // First try to read from script tag (avoids HTML escaping issues)
   const scriptTag = element.querySelector("script[data-preliq-props]");
   if (scriptTag) {
     try {
-      const content = scriptTag.textContent || "";
+      let content = scriptTag.textContent || "";
       const trimmed = content.trim();
       if (trimmed) {
         // Check if content still has Liquid tags (means Liquid wasn't processed)
@@ -73,7 +80,11 @@ function parseProps(element: Element): Record<string, any> {
           );
           return {};
         }
-        return JSON.parse(trimmed);
+        // Decode HTML entities (e.g., &quot; -> ")
+        // If textContent already decoded it, this is a no-op
+        // If innerHTML was used, this will decode entities
+        const decoded = decodeHtmlEntities(trimmed);
+        return JSON.parse(decoded);
       }
     } catch (error) {
       console.warn("[Preliquify] Failed to parse props from script:", error);
@@ -81,6 +92,14 @@ function parseProps(element: Element): Record<string, any> {
         "[Preliquify] Script content:",
         scriptTag.textContent?.substring(0, 200)
       );
+      // Try decoding HTML entities as fallback
+      try {
+        const content = scriptTag.textContent || "";
+        const decoded = decodeHtmlEntities(content.trim());
+        return JSON.parse(decoded);
+      } catch (decodeError) {
+        // If decoding also fails, return empty props
+      }
     }
   }
 
@@ -89,7 +108,9 @@ function parseProps(element: Element): Record<string, any> {
   if (!propsAttr) return {};
 
   try {
-    return JSON.parse(propsAttr);
+    // Decode HTML entities from attribute as well
+    const decoded = decodeHtmlEntities(propsAttr);
+    return JSON.parse(decoded);
   } catch (error) {
     console.warn("[Preliquify] Failed to parse props:", propsAttr, error);
     return {};
