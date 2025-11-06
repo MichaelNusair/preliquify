@@ -86,7 +86,7 @@ export const ESBUILD_RUNTIME_CONFIG: BuildOptions = {
   minify: true,
   target: ["es2015"],
   treeShaking: true,
-  mangleProps: /^_(?!_PRELIQUIFY__)/, // Don't mangle __PRELIQUIFY__
+  mangleProps: /^_[^_]/, // Mangle _private but not __PRELIQUIFY__ (Go regex doesn't support lookahead)
   legalComments: "none",
   pure: ["console.log"],
   drop: ["debugger"],
