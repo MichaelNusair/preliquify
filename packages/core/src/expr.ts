@@ -3,6 +3,41 @@ import type { Expr } from "./types.js";
 export type { Expr };
 
 /**
+ * Creates an Expr object with toString() and valueOf() methods for primitive conversion.
+ * This allows Expr objects to be used directly in JSX contexts where they need to be
+ * converted to strings or primitives.
+ */
+export function createExpr<T>(
+  toLiquid: () => string,
+  toClient: () => (ctx: Record<string, unknown>) => T
+): Expr<T> {
+  const expr: Expr<T> = {
+    toLiquid,
+    toClient,
+  };
+
+  // Add toString() and valueOf() to allow primitive conversion
+  // This is needed when Expr objects are used in JSX contexts (e.g., inside For loops)
+  Object.defineProperty(expr, "toString", {
+    value: function () {
+      return toLiquid();
+    },
+    enumerable: false,
+    configurable: true,
+  });
+
+  Object.defineProperty(expr, "valueOf", {
+    value: function () {
+      return toLiquid();
+    },
+    enumerable: false,
+    configurable: true,
+  });
+
+  return expr;
+}
+
+/**
  * Expression builder for creating Liquid expressions with type safety
  *
  * The `$` helper provides a fluent API for building Liquid expressions that work
@@ -41,10 +76,10 @@ export const $ = {
    * ```
    */
   lit<T>(v: T): Expr<T> {
-    return {
-      toLiquid: () => JSON.stringify(v),
-      toClient: () => () => v,
-    };
+    return createExpr(
+      () => JSON.stringify(v),
+      () => () => v
+    );
   },
 
   /**
@@ -63,17 +98,17 @@ export const $ = {
    * ```
    */
   var<T = unknown>(name: string): Expr<T> {
-    return {
-      toLiquid: () => name,
-      toClient: () => (ctx: Record<string, unknown>) => {
+    return createExpr(
+      () => name,
+      () => (ctx: Record<string, unknown>) => {
         const segments = name.split(".");
         let cur: unknown = ctx;
         for (const s of segments) {
           cur = (cur as Record<string, unknown>)?.[s];
         }
         return cur as T;
-      },
-    };
+      }
+    );
   },
 
   /**
@@ -91,10 +126,10 @@ export const $ = {
    * ```
    */
   not(a: Expr<boolean>): Expr<boolean> {
-    return {
-      toLiquid: () => `(not ${a.toLiquid()})`,
-      toClient: () => (ctx) => !a.toClient()(ctx),
-    };
+    return createExpr(
+      () => `(not ${a.toLiquid()})`,
+      () => (ctx) => !a.toClient()(ctx)
+    );
   },
 
   /**
@@ -111,10 +146,10 @@ export const $ = {
    * ```
    */
   and(a: Expr<boolean>, b: Expr<boolean>): Expr<boolean> {
-    return {
-      toLiquid: () => `(${a.toLiquid()}) and (${b.toLiquid()})`,
-      toClient: () => (ctx) => a.toClient()(ctx) && b.toClient()(ctx),
-    };
+    return createExpr(
+      () => `(${a.toLiquid()}) and (${b.toLiquid()})`,
+      () => (ctx) => a.toClient()(ctx) && b.toClient()(ctx)
+    );
   },
 
   /**
@@ -131,10 +166,10 @@ export const $ = {
    * ```
    */
   or(a: Expr<boolean>, b: Expr<boolean>): Expr<boolean> {
-    return {
-      toLiquid: () => `(${a.toLiquid()}) or (${b.toLiquid()})`,
-      toClient: () => (ctx) => a.toClient()(ctx) || b.toClient()(ctx),
-    };
+    return createExpr(
+      () => `(${a.toLiquid()}) or (${b.toLiquid()})`,
+      () => (ctx) => a.toClient()(ctx) || b.toClient()(ctx)
+    );
   },
 
   /**
@@ -156,10 +191,10 @@ export const $ = {
    * ```
    */
   eq<T>(a: Expr<T>, b: Expr<T>): Expr<boolean> {
-    return {
-      toLiquid: () => `${a.toLiquid()} == ${b.toLiquid()}`,
-      toClient: () => (ctx) => a.toClient()(ctx) === b.toClient()(ctx),
-    };
+    return createExpr(
+      () => `${a.toLiquid()} == ${b.toLiquid()}`,
+      () => (ctx) => a.toClient()(ctx) === b.toClient()(ctx)
+    );
   },
 
   /**
@@ -181,10 +216,10 @@ export const $ = {
    * ```
    */
   contains<T>(collection: Expr<T[]>, item: Expr<T>): Expr<boolean> {
-    return {
-      toLiquid: () => `${collection.toLiquid()} contains ${item.toLiquid()}`,
-      toClient: () => (ctx) =>
-        (collection.toClient()(ctx) ?? []).includes(item.toClient()(ctx)),
-    };
+    return createExpr(
+      () => `${collection.toLiquid()} contains ${item.toLiquid()}`,
+      () => (ctx) =>
+        (collection.toClient()(ctx) ?? []).includes(item.toClient()(ctx))
+    );
   },
 };
