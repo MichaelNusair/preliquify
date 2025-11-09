@@ -187,8 +187,23 @@ export const $ = {
    */
   not(a: Expr<boolean>): Expr<boolean> {
     // Liquid doesn't support parentheses around 'not'
+    // WARNING: When negating OR expressions, use De Morgan's law:
+    // not (A or B) = (not A) and (not B)
+    // Liquid parses "not A or B" as "(not A) or B", not "not (A or B)"
+    const liquidStr = a.toLiquid();
+    
+    // Check if this is an OR expression (contains " or ")
+    // If so, warn the user that they should use De Morgan's law
+    if (liquidStr.includes(" or ")) {
+      console.warn(
+        "[Preliquify] Negating an OR expression. Liquid will parse 'not A or B' as '(not A) or B', not 'not (A or B)'. " +
+        "Use De Morgan's law: not (A or B) = (not A) and (not B). " +
+        "Or restructure to check for the specific conditions you want."
+      );
+    }
+    
     return createExpr(
-      () => `not ${a.toLiquid()}`,
+      () => `not ${liquidStr}`,
       () => (ctx) => !a.toClient()(ctx)
     );
   },
