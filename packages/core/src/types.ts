@@ -197,6 +197,22 @@ export interface ExpressionBuilder {
   first<T>(array: Expr<T[]>): Expr<T | undefined>;
   last<T>(array: Expr<T[]>): Expr<T | undefined>;
 
+  // Array transformations
+  map<T, R>(
+    arrayExpr: Expr<T[]>,
+    transform: (item: {
+      var: (path: string) => Expr<unknown>;
+      prop: <K extends keyof T>(prop: K) => Expr<T[K]>;
+    }) => R | Expr<R>
+  ): Expr<R[]>;
+  filter<T>(
+    arrayExpr: Expr<T[]>,
+    predicate: (item: {
+      var: (path: string) => Expr<unknown>;
+      prop: <K extends keyof T>(prop: K) => Expr<T[K]>;
+    }) => Expr<boolean>
+  ): Expr<T[]>;
+
   // Null checks
   isNil(value: Expr<unknown>): Expr<boolean>;
   isBlank(value: Expr<unknown>): Expr<boolean>;
