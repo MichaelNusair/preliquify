@@ -1,5 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
   "include": ["src"],
-  "compilerOptions": { "outDir": "dist" }
+  "exclude": ["src/**/*.test.*", "src/**/*.spec.*"],
+  "compilerOptions": {
+    "outDir": "dist",
+    "composite": true,
+    "baseUrl": ".",
+    "rootDir": "src",
+    "paths": {
+      "@preliquify/core": ["../core/src"],
+      "@preliquify/compiler": ["../compiler/src"],
+      "@preliquify/preact": ["../preact/src"]
+    }
+  },
+  "references": [{ "path": "../core" }, { "path": "../compiler" }]
 }

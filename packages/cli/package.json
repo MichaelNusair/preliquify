@@ -26,7 +26,7 @@
   },
   "version": "1.3.31",
   "bin": {
-    "preliquify": "dist/cli/src/index.js"
+    "preliquify": "dist/index.js"
   },
   "type": "module",
   "main": "dist/types.js",
