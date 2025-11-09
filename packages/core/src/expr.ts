@@ -174,34 +174,60 @@ export const $ = {
   /**
    * Creates a logical NOT expression
    *
+   * **⚠️ Important:** Cannot negate OR expressions in Liquid.
+   * Liquid parses `not A or B` as `(not A) or B`, not `not (A or B)`.
+   *
+   * **For multiple branches (3+), use `<Choose>` component instead.**
+   *
    * @param a - The boolean expression to negate
    * @returns An Expr that represents `not a` in Liquid
    *
    * @example
    * ```tsx
+   * // Simple negation
    * $.not($.var("customer.logged_in"))  // => not customer.logged_in
    * <Conditional when={$.not($.var("settings.show_header"))}>
    *   <p>Header is hidden</p>
    * </Conditional>
+   *
+   * // ❌ Don't do this - will throw error:
+   * $.not($.or($.eq($.var("type"), $.lit("a")), $.eq($.var("type"), $.lit("b"))))
+   *
+   * // ✅ Use Choose for 3+ branches:
+   * <Choose
+   *   value={$.var("type")}
+   *   cases={{ a: <ComponentA />, b: <ComponentB /> }}
+   *   default={<ComponentC />}
+   * />
    * ```
    */
   not(a: Expr<boolean>): Expr<boolean> {
     // Liquid doesn't support parentheses around 'not'
-    // WARNING: When negating OR expressions, use De Morgan's law:
-    // not (A or B) = (not A) and (not B)
+    // ERROR: Negating OR expressions doesn't work in Liquid
     // Liquid parses "not A or B" as "(not A) or B", not "not (A or B)"
     const liquidStr = a.toLiquid();
-    
+
     // Check if this is an OR expression (contains " or ")
-    // If so, warn the user that they should use De Morgan's law
+    // Throw an error to prevent misuse - user must use De Morgan's law or Choose component
     if (liquidStr.includes(" or ")) {
-      console.warn(
-        "[Preliquify] Negating an OR expression. Liquid will parse 'not A or B' as '(not A) or B', not 'not (A or B)'. " +
-        "Use De Morgan's law: not (A or B) = (not A) and (not B). " +
-        "Or restructure to check for the specific conditions you want."
-      );
+      const errorMsg =
+        "[Preliquify] Cannot negate an OR expression. Liquid will parse 'not A or B' as '(not A) or B', not 'not (A or B)'. " +
+        "\n\nSolutions:\n" +
+        "1. Use De Morgan's law: not (A or B) = (not A) and (not B)\n" +
+        "2. Use Choose component for 3+ branches (recommended)\n" +
+        "3. Restructure to check for the specific conditions you want\n\n" +
+        `Expression: not ${liquidStr}`;
+
+      if (
+        typeof process !== "undefined" &&
+        process.env.NODE_ENV !== "production"
+      ) {
+        throw new Error(errorMsg);
+      } else {
+        console.error(errorMsg);
+      }
     }
-    
+
     return createExpr(
       () => `not ${liquidStr}`,
       () => (ctx) => !a.toClient()(ctx)
@@ -234,6 +260,9 @@ export const $ = {
    * Creates a logical OR expression
    * Supports chaining multiple OR conditions (Shopify Liquid supports this)
    *
+   * **💡 Tip:** For 3+ branches checking the same value, consider using `<Choose>` component instead.
+   * It's more maintainable and generates cleaner Liquid code.
+   *
    * @param a - First boolean expression
    * @param b - Second boolean expression
    * @param rest - Additional boolean expressions to chain with OR
@@ -245,13 +274,23 @@ export const $ = {
    * $.or($.var("customer.logged_in"), $.var("cart.item_count"))
    * // => customer.logged_in or cart.item_count
    *
-   * // Three or more conditions
+   * // Three or more conditions (works, but Choose is better)
    * $.or(
    *   $.eq($.var("product.type"), $.lit("shirt")),
    *   $.eq($.var("product.type"), $.lit("pants")),
    *   $.eq($.var("product.type"), $.lit("shoes"))
    * )
    * // => product.type == 'shirt' or product.type == 'pants' or product.type == 'shoes'
+   *
+   * // ✅ Better: Use Choose for 3+ branches
+   * <Choose
+   *   value={$.var("product.type")}
+   *   cases={{
+   *     shirt: <ShirtComponent />,
+   *     pants: <PantsComponent />,
+   *     shoes: <ShoesComponent />,
+   *   }}
+   * />
    * ```
    */
   or(

@@ -8,6 +8,11 @@ import type { ConditionalProps } from "../types.js";
  * This component enables conditional rendering that works both at build time
  * (generating Liquid syntax) and at runtime (client-side evaluation).
  *
+ * **Best Practices:**
+ * - Use for simple true/false conditions or 1-2 branches
+ * - For 3+ branches, use `<Choose>` component instead (more maintainable)
+ * - Avoid negating OR expressions - use De Morgan's law or restructure
+ *
  * @param props - The conditional props
  * @param props.when - Expression that evaluates to a boolean
  * @param props.children - Content to render if condition is true
@@ -16,23 +21,21 @@ import type { ConditionalProps } from "../types.js";
  * ```tsx
  * import { Conditional, $ } from '@preliquify/preact';
  *
- * // Check if customer is logged in
+ * // Simple condition
  * <Conditional when={$.var("customer.email")}>
  *   <p>Welcome back, {{ customer.name }}</p>
  * </Conditional>
  *
- * // Check product availability
- * <Conditional when={$.var("product.available")}>
- *   <button>Add to Cart</button>
- * </Conditional>
- *
- * // Complex conditions
- * <Conditional when={$.and(
- *   $.var("customer.logged_in"),
- *   $.eq($.var("cart.item_count"), $.lit(0))
- * )}>
- *   <p>You're logged in but your cart is empty</p>
- * </Conditional>
+ * // For 3+ branches, use Choose instead:
+ * <Choose
+ *   value={$.var("product.type")}
+ *   cases={{
+ *     shirt: <ShirtComponent />,
+ *     pants: <PantsComponent />,
+ *     shoes: <ShoesComponent />,
+ *   }}
+ *   default={<OtherComponent />}
+ * />
  * ```
  *
  * @remarks
@@ -45,14 +48,29 @@ import type { ConditionalProps } from "../types.js";
  */
 export function Conditional(props: ConditionalProps) {
   const target = useTarget();
+
   if (target === "liquid") {
+    const liquidExpr = props.when.toLiquid();
+
+    // Warn if this looks like it should use Choose instead (multiple OR conditions)
+    // Count OR operators - if 2+ (meaning 3+ branches), suggest Choose
+    const orCount = (liquidExpr.match(/\sor\s/g) || []).length;
+    if (orCount >= 2) {
+      console.warn(
+        `[Preliquify] Consider using <Choose> component for ${orCount + 1} branches instead of multiple <Conditional> components. ` +
+          `This is more maintainable and generates cleaner Liquid code.\n` +
+          `Current expression: ${liquidExpr}`
+      );
+    }
+
     return (
       <Fragment>
-        {"{% if " + props.when.toLiquid() + " %}"}
+        {`{% if ${liquidExpr} %}`}
         {props.children}
         {"{% endif %}"}
       </Fragment>
     );
   }
+
   return props.when.toClient()({}) ? props.children : null;
 }
