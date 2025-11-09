@@ -333,10 +333,20 @@ export const $ = {
       }
 
       // Both are runtime values - create Expr that returns the selected value
+      // WARNING: This won't work in Liquid context - runtime objects can't be converted to Liquid paths
+      // For Liquid, you should use $.var() with Liquid paths instead
       return createExpr(
         () => {
           // For Liquid, we can't use runtime values directly
-          // Return a placeholder (will be evaluated at runtime)
+          // If it's an object, we can't generate a valid Liquid path
+          if (typeof selectedRuntime === "object" && selectedRuntime !== null) {
+            // This will generate invalid Liquid - user should use Liquid paths instead
+            console.warn(
+              "[Preliquify] $.when() received runtime objects. For Liquid generation, use Liquid paths: $.when(condition, $.var('path1'), $.var('path2'))"
+            );
+            return "[object Object]"; // This will cause Liquid errors - user needs to fix
+          }
+          // For primitives, we can use them directly
           return String(selectedRuntime);
         },
         () => () => selectedRuntime as T
