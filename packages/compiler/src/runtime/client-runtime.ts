@@ -179,6 +179,23 @@ function hydrateIslands(runtime: PreliquifyRuntime): void {
   } else {
     deferredIslands.forEach((island) => hydrateIsland(island, runtime));
   }
+
+  // Retry pending islands (components that weren't found yet)
+  // This handles the case where components register after initial hydration attempt
+  const pendingIslands = document.querySelectorAll("[data-preliq-pending]");
+  if (pendingIslands.length > 0) {
+    pendingIslands.forEach((island) => {
+      const componentName = island.getAttribute("data-preliq-pending");
+      const Component =
+        runtime.components.get(componentName || "") ||
+        window.__PRELIQUIFY__?.[componentName || ""];
+      
+      if (Component) {
+        // Component is now available, try to hydrate
+        hydrateIsland(island, runtime);
+      }
+    });
+  }
 }
 
 function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
@@ -197,18 +214,28 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
     window.__PRELIQUIFY__?.[componentName];
 
   if (!Component) {
-    console.warn(`[Preliquify] Component "${componentName}" not found`);
-    console.warn(
-      `[Preliquify] Available components:`,
-      Array.from(runtime.components.keys())
-    );
-    console.warn(
-      `[Preliquify] Available in window.__PRELIQUIFY__:`,
-      Object.keys(window.__PRELIQUIFY__ || {})
-    );
-    element.setAttribute("data-preliq-error", "component-not-found");
+    // Component not found yet - this is expected when scripts load asynchronously
+    // Don't set permanent error, just log a warning (only in debug mode to reduce noise)
+    if (runtime.debug) {
+      console.warn(`[Preliquify] Component "${componentName}" not found yet (will retry)`);
+      console.warn(
+        `[Preliquify] Available components:`,
+        Array.from(runtime.components.keys())
+      );
+      console.warn(
+        `[Preliquify] Available in window.__PRELIQUIFY__:`,
+        Object.keys(window.__PRELIQUIFY__ || {})
+      );
+    }
+    // Set a temporary marker to track that we've tried (but don't mark as error)
+    // This allows retries when the component becomes available
+    element.setAttribute("data-preliq-pending", componentName);
     return;
   }
+
+  // Component found - remove any pending marker
+  element.removeAttribute("data-preliq-pending");
+  element.removeAttribute("data-preliq-error");
 
   const props = parseProps(element);
   const hydrated = safeHydrate(element, Component, props, runtime);
@@ -276,6 +303,7 @@ const Preliquify = {
     window.__PRELIQUIFY__[name] = component;
     // Trigger hydration when component registers (handles defer script timing)
     // Safe to call multiple times - hydrate() skips already-hydrated islands
+    // This will retry any pending islands waiting for this component
     if (document.body) {
       hydrateIslands(runtime);
     }
@@ -287,6 +315,19 @@ const Preliquify = {
       "[data-preliq-island]:not([data-preliq-hydrated])"
     );
     islands.forEach((island) => hydrateIsland(island, runtime));
+    
+    // Also retry any pending islands in this container
+    const pendingIslands = searchRoot.querySelectorAll("[data-preliq-pending]");
+    pendingIslands.forEach((island) => {
+      const componentName = island.getAttribute("data-preliq-pending");
+      const Component =
+        runtime.components.get(componentName || "") ||
+        window.__PRELIQUIFY__?.[componentName || ""];
+      
+      if (Component) {
+        hydrateIsland(island, runtime);
+      }
+    });
   },
 
   getComponent(id: string): any {
