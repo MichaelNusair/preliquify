@@ -1,4 +1,6 @@
+/** @jsx h */
 import { describe, it, expect } from "vitest";
+import { h } from "preact";
 import renderToString from "preact-render-to-string";
 import { Choose } from "./Choose";
 import { $ } from "../expr";
