@@ -1,11 +1,11 @@
-import type { ComponentType, JSX, VNode } from "preact";
+import type { ComponentType, JSX } from "preact";
 
 /**
  * Expression type that can be evaluated in both Liquid and client contexts
  *
  * Expressions provide a dual-compilation model:
  * - At build time: Generate Liquid template syntax via `toLiquid()`
- * - At runtime: Evaluate in the browser via `toClient()`
+ * - At runtime: Evaluate in the browser via `toClient()` or access `.value` directly
  *
  * @template T - The type of value this expression evaluates to
  *
@@ -14,6 +14,7 @@ import type { ComponentType, JSX, VNode } from "preact";
  * const expr: Expr<string> = $.var("product.title");
  * expr.toLiquid() // => "product.title" (used at build time)
  * expr.toClient()({ product: { title: "Shoes" } }) // => "Shoes" (used at runtime)
+ * expr.value // => Runtime value (convenience getter)
  * ```
  */
 export interface Expr<T> {
@@ -21,6 +22,8 @@ export interface Expr<T> {
   toLiquid(): string;
   /** Convert expression to client-side JavaScript function */
   toClient(): (ctx: Record<string, unknown>) => T;
+  /** Runtime value getter - evaluates the expression with empty context */
+  readonly value: T;
 }
 
 /**
