@@ -259,10 +259,19 @@ export interface EnhancedExpressionBuilder extends ExpressionBuilder {
   reverse<T>(array: Expr<T[]>): Expr<T[]>;
   uniq<T>(array: Expr<T[]>): Expr<T[]>;
   compact<T>(array: Expr<(T | null | undefined)[]>): Expr<T[]>;
+  // Overload for Liquid's map filter (property extraction)
   map<T, K extends keyof T>(
     array: Expr<T[]>,
     property: Expr<string>
   ): Expr<T[K][]>;
+  // Overload for transformation (inherited from ExpressionBuilder)
+  map<T, R>(
+    arrayExpr: Expr<T[]>,
+    transform: (item: {
+      var: (path: string) => Expr<unknown>;
+      prop: <K extends keyof T>(prop: K) => Expr<T[K]>;
+    }) => R | Expr<R>
+  ): Expr<R[]>;
   where<T>(
     array: Expr<T[]>,
     property: Expr<string>,

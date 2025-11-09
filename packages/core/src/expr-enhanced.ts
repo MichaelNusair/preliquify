@@ -1,5 +1,5 @@
 import type { Expr, EnhancedExpressionBuilder } from "./types.js";
-import { createExpr } from "./expr.js";
+import { createExpr, $ as base$ } from "./expr.js";
 
 export const $$: EnhancedExpressionBuilder = {
   lit<T>(v: T): Expr<T> {
@@ -396,15 +396,42 @@ export const $$: EnhancedExpressionBuilder = {
     );
   },
 
-  map(array: Expr<any[]>, property: Expr<string>): Expr<any[]> {
-    return createExpr(
-      () => `${array.toLiquid()} | map: ${property.toLiquid()}`,
-      () => (ctx) => {
-        const arr = array.toClient()(ctx);
-        const prop = property.toClient()(ctx);
-        return Array.isArray(arr) ? arr.map((item) => item?.[prop]) : [];
-      }
-    );
+  // Implementation of Liquid's map filter (property extraction)
+  // This handles both the property extraction case and delegates transformation to base
+  map(
+    array: Expr<any[]>,
+    propertyOrTransform: Expr<string> | ((item: any) => any)
+  ): Expr<any[]> {
+    // If second argument is an Expr<string>, it's the property extraction case (Liquid's map filter)
+    if (
+      typeof propertyOrTransform === "object" &&
+      propertyOrTransform !== null &&
+      "toLiquid" in propertyOrTransform
+    ) {
+      const property = propertyOrTransform as Expr<string>;
+      return createExpr(
+        () => `${array.toLiquid()} | map: ${property.toLiquid()}`,
+        () => (ctx) => {
+          const arr = array.toClient()(ctx);
+          const prop = property.toClient()(ctx);
+          return Array.isArray(arr) ? arr.map((item) => item?.[prop]) : [];
+        }
+      );
+    }
+
+    // Otherwise, delegate to base implementation for transformation
+    return base$.map(array, propertyOrTransform as any);
+  },
+
+  filter<T>(
+    arrayExpr: Expr<T[]>,
+    predicate: (item: {
+      var: (path: string) => Expr<unknown>;
+      prop: <K extends keyof T>(prop: K) => Expr<T[K]>;
+    }) => Expr<boolean>
+  ): Expr<T[]> {
+    // Delegate to base implementation
+    return base$.filter(arrayExpr, predicate);
   },
 
   where(
