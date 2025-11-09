@@ -241,6 +241,28 @@ export const $ = {
       return value as Expr<T>;
     }
 
+    // Warn if creating Expr with empty path - this will cause errors when using $.prop()
+    if (!fallbackPath) {
+      const errorMsg =
+        `[Preliquify] $.asExpr() was called with a raw value but no fallback path. ` +
+        `This will create an Expr with an empty Liquid path, which will cause errors when accessing properties. ` +
+        `\n\nSolution: Pass the prop as an Expr from the parent component using $.from():\n` +
+        `  // In parent component:\n` +
+        `  <MediaGallery\n` +
+        `    designSettings={$.from("storeMetafield.designSettings", props.storeMetafield.designSettings)}\n` +
+        `    // ...\n` +
+        `  />\n\n` +
+        `  // Or provide a fallback path:\n` +
+        `  const settings = $.asExpr(designSettings, "storeMetafield.designSettings");`;
+
+      if (
+        typeof process !== "undefined" &&
+        process.env.NODE_ENV !== "production"
+      ) {
+        console.warn(errorMsg);
+      }
+    }
+
     // Otherwise, wrap it with $.from()
     return $.from(fallbackPath, value as T);
   },
