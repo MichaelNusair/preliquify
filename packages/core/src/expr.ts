@@ -186,8 +186,9 @@ export const $ = {
    * ```
    */
   not(a: Expr<boolean>): Expr<boolean> {
+    // Liquid doesn't support parentheses around 'not'
     return createExpr(
-      () => `(not ${a.toLiquid()})`,
+      () => `not ${a.toLiquid()}`,
       () => (ctx) => !a.toClient()(ctx)
     );
   },
