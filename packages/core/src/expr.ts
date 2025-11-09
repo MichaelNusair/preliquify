@@ -14,6 +14,13 @@ export function createExpr<T>(
   const expr: Expr<T> = {
     toLiquid,
     toClient,
+    // Add .value getter for runtime access
+    // This allows accessing the actual value at runtime: expr.value
+    get value() {
+      // At runtime, evaluate with empty context (will be populated by actual props)
+      // This is a convenience getter - actual evaluation happens in components
+      return toClient()({});
+    },
   };
 
   // Add toString() and valueOf() to allow primitive conversion
@@ -29,18 +36,6 @@ export function createExpr<T>(
   Object.defineProperty(expr, "valueOf", {
     value() {
       return toLiquid();
-    },
-    enumerable: false,
-    configurable: true,
-  });
-
-  // Add .value getter for runtime access
-  // This allows accessing the actual value at runtime: expr.value
-  Object.defineProperty(expr, "value", {
-    get() {
-      // At runtime, evaluate with empty context (will be populated by actual props)
-      // This is a convenience getter - actual evaluation happens in components
-      return toClient()({});
     },
     enumerable: false,
     configurable: true,
