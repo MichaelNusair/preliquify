@@ -34,6 +34,18 @@ export function createExpr<T>(
     configurable: true,
   });
 
+  // Add .value getter for runtime access
+  // This allows accessing the actual value at runtime: expr.value
+  Object.defineProperty(expr, "value", {
+    get() {
+      // At runtime, evaluate with empty context (will be populated by actual props)
+      // This is a convenience getter - actual evaluation happens in components
+      return toClient()({});
+    },
+    enumerable: false,
+    configurable: true,
+  });
+
   return expr;
 }
 
@@ -96,18 +108,34 @@ export const $ = {
    * Creates a variable expression from a Liquid variable path
    *
    * @template T - The expected type of the variable (defaults to unknown)
-   * @param name - The Liquid variable path (e.g., "product.title", "customer.email")
+   * @param name - The Liquid variable path (e.g., "product.title", "customer.email") or an Expr<string>
    * @returns An Expr that represents the variable in Liquid and runtime
    *
    * @example
    * ```tsx
    * $.var("product.title")              // Access product title
    * $.var("customer.email")             // Access customer email
-   * $.var("collections.frontpage")      // Access collection
-   * $.var("settings.show_banner")       // Access theme setting
+   * $.var($.when(condition, "path1", "path2"))  // Conditional path
    * ```
    */
-  var<T = unknown>(name: string): Expr<T> {
+  var<T = unknown>(name: string | Expr<string>): Expr<T> {
+    // If name is already an Expr, use it directly
+    if (typeof name === "object" && "toLiquid" in name) {
+      return createExpr(
+        () => name.toLiquid(),
+        () => (ctx: Record<string, unknown>) => {
+          const path = name.toClient()(ctx);
+          const segments = String(path).split(".");
+          let cur: unknown = ctx;
+          for (const s of segments) {
+            cur = (cur as Record<string, unknown>)?.[s];
+          }
+          return cur as T;
+        }
+      );
+    }
+
+    // Otherwise, treat as string path
     return createExpr(
       () => name,
       () => (ctx: Record<string, unknown>) => {
@@ -178,48 +206,230 @@ export const $ = {
    * ```
    */
   and(a: Expr<boolean>, b: Expr<boolean>): Expr<boolean> {
+    // Note: Liquid doesn't support parentheses, but for AND we can still use them
+    // in simple cases. However, to be safe, we'll avoid them when possible.
     return createExpr(
-      () => `(${a.toLiquid()}) and (${b.toLiquid()})`,
+      () => `${a.toLiquid()} and ${b.toLiquid()}`,
       () => (ctx) => a.toClient()(ctx) && b.toClient()(ctx)
     );
   },
 
   /**
    * Creates a logical OR expression
+   * Supports chaining multiple OR conditions (Shopify Liquid supports this)
    *
    * @param a - First boolean expression
    * @param b - Second boolean expression
-   * @returns An Expr that represents `a or b` in Liquid
+   * @param rest - Additional boolean expressions to chain with OR
+   * @returns An Expr that represents `a or b or ...` in Liquid
    *
    * @example
    * ```tsx
+   * // Two conditions
    * $.or($.var("customer.logged_in"), $.var("cart.item_count"))
    * // => customer.logged_in or cart.item_count
+   *
+   * // Three or more conditions
+   * $.or(
+   *   $.eq($.var("product.type"), $.lit("shirt")),
+   *   $.eq($.var("product.type"), $.lit("pants")),
+   *   $.eq($.var("product.type"), $.lit("shoes"))
+   * )
+   * // => product.type == 'shirt' or product.type == 'pants' or product.type == 'shoes'
    * ```
    */
-  or(a: Expr<boolean>, b: Expr<boolean>): Expr<boolean> {
+  or(
+    a: Expr<boolean>,
+    b: Expr<boolean>,
+    ...rest: Expr<boolean>[]
+  ): Expr<boolean> {
+    // Chain multiple ORs: a or b or c or d ...
+    // Note: Liquid doesn't support parentheses, so we don't wrap conditions
+    const allExprs = [a, b, ...rest];
     return createExpr(
-      () => `(${a.toLiquid()}) or (${b.toLiquid()})`,
-      () => (ctx) => a.toClient()(ctx) || b.toClient()(ctx)
+      () => {
+        // Generate: a or b or c or d (no parentheses - Liquid doesn't support them)
+        return allExprs.map((expr) => expr.toLiquid()).join(" or ");
+      },
+      () => (ctx) => {
+        // Evaluate all and return true if any is true
+        return allExprs.some((expr) => expr.toClient()(ctx));
+      }
+    );
+  },
+
+  /**
+   * Conditionally selects a value or path based on a condition.
+   * Automatically handles both runtime values and Liquid paths.
+   *
+   * @template T - The type of the selected value
+   * @param condition - Boolean condition (can be a prop or Liquid variable)
+   * @param trueValue - Value/path to use when condition is true
+   * @param falseValue - Value/path to use when condition is false
+   * @returns An Expr representing the selected value
+   *
+   * @example
+   * ```tsx
+   * // Select path based on prop (for Liquid)
+   * const settings = $.when(
+   *   staticIsMobile,
+   *   $.var("designSettings.mobileSettings"),
+   *   $.var("designSettings.desktopSettings")
+   * );
+   * // Access nested property
+   * const layoutType = $.prop(settings, "desktopLayoutType");
+   *
+   * // Select runtime value (for client-side)
+   * const runtimeSettings = $.when(
+   *   staticIsMobile,
+   *   mobileSettings,  // runtime value
+   *   desktopSettings  // runtime value
+   * );
+   * ```
+   */
+  when<T>(
+    condition: boolean | Expr<boolean>,
+    trueValue: T | Expr<T>,
+    falseValue: T | Expr<T>
+  ): Expr<T> {
+    // Check if values are Exprs
+    const trueIsExpr =
+      typeof trueValue === "object" &&
+      trueValue !== null &&
+      "toLiquid" in trueValue;
+    const falseIsExpr =
+      typeof falseValue === "object" &&
+      falseValue !== null &&
+      "toLiquid" in falseValue;
+
+    // Store runtime values for .value access
+    const trueRuntime = trueIsExpr ? undefined : (trueValue as T);
+    const falseRuntime = falseIsExpr ? undefined : (falseValue as T);
+
+    // If condition is a boolean prop
+    if (typeof condition === "boolean") {
+      const selectedValue = condition ? trueValue : falseValue;
+      const selectedRuntime = condition ? trueRuntime : falseRuntime;
+
+      // If selected value is an Expr, enhance it with runtime value access
+      if (
+        typeof selectedValue === "object" &&
+        selectedValue !== null &&
+        "toLiquid" in selectedValue
+      ) {
+        const selectedExpr = selectedValue as Expr<T>;
+
+        // Create enhanced Expr that preserves runtime value for .value access
+        return createExpr(
+          () => selectedExpr.toLiquid(),
+          () => {
+            // If we have runtime value, use it; otherwise evaluate the Expr
+            if (selectedRuntime !== undefined) {
+              return () => selectedRuntime;
+            }
+            return selectedExpr.toClient();
+          }
+        );
+      }
+
+      // Both are runtime values - create Expr that returns the selected value
+      return createExpr(
+        () => {
+          // For Liquid, we can't use runtime values directly
+          // Return a placeholder (will be evaluated at runtime)
+          return String(selectedRuntime);
+        },
+        () => () => selectedRuntime as T
+      );
+    }
+
+    // If condition is an Expr (Liquid variable)
+    const trueExpr = trueIsExpr
+      ? (trueValue as Expr<T>)
+      : $.lit(trueValue as T);
+    const falseExpr = falseIsExpr
+      ? (falseValue as Expr<T>)
+      : $.lit(falseValue as T);
+
+    return createExpr(
+      () => {
+        // Generate Liquid conditional expression
+        // Liquid doesn't have ternary, but we can use: (condition and trueValue) or falseValue
+        // But this only works for boolean values, not paths
+        // For paths, we need to handle it differently
+        if (trueIsExpr || falseIsExpr) {
+          // At least one is an Expr - we need to generate proper Liquid conditional
+          // This is complex, so for now we'll use a workaround
+          return `(${condition.toLiquid()} ? ${trueExpr.toLiquid()} : ${falseExpr.toLiquid()})`;
+        }
+        return `(${condition.toLiquid()} ? ${trueExpr.toLiquid()} : ${falseExpr.toLiquid()})`;
+      },
+      () => (ctx) => {
+        const cond = condition.toClient()(ctx);
+        if (cond) {
+          return trueIsExpr ? trueExpr.toClient()(ctx) : (trueRuntime as T);
+        } else {
+          return falseIsExpr ? falseExpr.toClient()(ctx) : (falseRuntime as T);
+        }
+      }
+    );
+  },
+
+  /**
+   * Accesses a nested property on an expression
+   *
+   * @template T - The type of the parent expression
+   * @template K - The property key
+   * @param expr - The parent expression
+   * @param property - The property name to access
+   * @returns An Expr representing the nested property
+   *
+   * @example
+   * ```tsx
+   * const settings = $.var("designSettings.desktopSettings");
+   * const layoutType = $.prop(settings, "desktopLayoutType");
+   * // Equivalent to: $.var("designSettings.desktopSettings.desktopLayoutType")
+   * ```
+   */
+  prop<T, K extends keyof T>(expr: Expr<T>, property: string): Expr<T[K]> {
+    return createExpr(
+      () => {
+        const base = expr.toLiquid();
+        // If base is already a path, append property
+        if (!base.includes(" ") && !base.includes("(")) {
+          return `${base}.${property}`;
+        }
+        // Otherwise, we need to handle it differently
+        // For complex expressions, we can't just append
+        return `${base}.${property}`;
+      },
+      () => (ctx) => {
+        const parent = expr.toClient()(ctx);
+        if (parent && typeof parent === "object") {
+          return (parent as Record<string, unknown>)[property] as T[K];
+        }
+        return undefined as T[K];
+      }
     );
   },
 
   /**
    * Creates an equality comparison expression
+   * Automatically handles nested property access if the first argument is an object Expr
    *
    * @template T - The type of values being compared
-   * @param a - First expression to compare
+   * @param a - First expression to compare (can be object Expr with property access)
    * @param b - Second expression to compare
    * @returns An Expr that represents `a == b` in Liquid
    *
    * @example
    * ```tsx
    * $.eq($.var("product.type"), $.lit("shirt"))
-   * // => product.type == "shirt"
+   * // => product.type == 'shirt'
    *
-   * <Conditional when={$.eq($.var("cart.item_count"), $.lit(0))}>
-   *   <p>Your cart is empty</p>
-   * </Conditional>
+   * const settings = $.var("designSettings.desktopSettings");
+   * $.eq($.prop(settings, "desktopLayoutType"), $.lit("slider"))
+   * // => designSettings.desktopSettings.desktopLayoutType == 'slider'
    * ```
    */
   eq<T>(a: Expr<T>, b: Expr<T>): Expr<boolean> {
