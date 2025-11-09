@@ -534,13 +534,49 @@ export const $ = {
     return createExpr(
       () => {
         const base = expr.toLiquid();
-        // If base is already a path, append property
+
+        // Validate base path - must not be empty or start with a dot
+        if (!base || base.startsWith(".")) {
+          const errorMsg =
+            `[Preliquify] Cannot access property "${property}" on invalid Liquid path: "${base}". ` +
+            `The base path is empty or starts with a dot, which is invalid in Liquid. ` +
+            `\n\nSolution: Use $.from() to provide a valid Liquid path when creating the Expr:\n` +
+            `  const settings = $.from("storeMetafield.designSettings", designSettings);\n` +
+            `  const layoutType = $.prop(settings, "desktopLayoutType");`;
+
+          if (
+            typeof process !== "undefined" &&
+            process.env.NODE_ENV !== "production"
+          ) {
+            throw new Error(errorMsg);
+          }
+          // In production, return a safe fallback
+          return property;
+        }
+
+        // If base is already a path (no spaces, no parentheses), append property
         if (!base.includes(" ") && !base.includes("(")) {
           return `${base}.${property}`;
         }
-        // Otherwise, we need to handle it differently
-        // For complex expressions, we can't just append
-        return `${base}.${property}`;
+
+        // For complex expressions (conditionals, comparisons, etc.), we can't append
+        // This is a limitation - you can't do "if condition then path1 else path2".property
+        // The user needs to restructure their logic
+        const errorMsg =
+          `[Preliquify] Cannot access property "${property}" on complex expression: "${base}". ` +
+          `Liquid doesn't support property access on conditional expressions. ` +
+          `\n\nSolution: Access the property before the conditional:\n` +
+          `  // Instead of: $.prop($.when(condition, path1, path2), "property")\n` +
+          `  // Do: $.when(condition, $.prop(path1, "property"), $.prop(path2, "property"))`;
+
+        if (
+          typeof process !== "undefined" &&
+          process.env.NODE_ENV !== "production"
+        ) {
+          throw new Error(errorMsg);
+        }
+        // In production, return a safe fallback
+        return property;
       },
       () => (ctx) => {
         const parent = expr.toClient()(ctx);
