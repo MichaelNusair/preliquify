@@ -172,6 +172,47 @@ export const $ = {
   },
 
   /**
+   * Creates an Expr from a runtime value with its Liquid path.
+   * This is essential when passing props to child components that need to use Liquid expressions.
+   *
+   * **Problem it solves:**
+   * When you pass `props.storeMetafield.designSettings` to a child component as `designSettings`,
+   * the child can't use `$.var('designSettings.mobileSettings')` because `designSettings` isn't
+   * a Liquid variable - the actual Liquid path is `storeMetafield.designSettings`.
+   *
+   * **Solution:**
+   * Use `$.from()` to wrap the prop with its Liquid path, then use `$.prop()` to access nested properties.
+   *
+   * @template T - The type of the value
+   * @param liquidPath - The Liquid variable path (e.g., "storeMetafield.designSettings")
+   * @param runtimeValue - The runtime JavaScript value
+   * @returns An Expr that uses the Liquid path at build time and runtime value at runtime
+   *
+   * @example
+   * ```tsx
+   * // In parent component (createLiquidSnippet root):
+   * <MediaGallery
+   *   designSettings={$.from("storeMetafield.designSettings", props.storeMetafield.designSettings)}
+   *   // ...
+   * />
+   *
+   * // In child component:
+   * const MediaGallery = ({ designSettings, ... }) => {
+   *   const mobileSettings = $.prop(designSettings, "mobileSettings");
+   *   const layoutType = $.prop(mobileSettings, "layoutType");
+   *   // Liquid: storeMetafield.designSettings.mobileSettings.layoutType
+   *   // Runtime: designSettings.mobileSettings.layoutType
+   * };
+   * ```
+   */
+  from<T>(liquidPath: string, runtimeValue: T): Expr<T> {
+    return createExpr(
+      () => liquidPath,
+      () => () => runtimeValue
+    );
+  },
+
+  /**
    * Creates a logical NOT expression
    *
    * **⚠️ Important:** Cannot negate OR expressions in Liquid.
