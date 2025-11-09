@@ -17,4 +17,3 @@ yarn add @preliquify/compiler
 ## Usage
 
 This package is typically used internally by `@preliquify/cli`. For usage instructions, see the [main repository](https://github.com/MichaelNusair/preliquify).
-

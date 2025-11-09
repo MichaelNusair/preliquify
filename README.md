@@ -13,33 +13,37 @@ pnpm add -D @preliquify/cli @preliquify/preact
 **Config** (`preliquify.config.ts`):
 
 ```typescript
-import type { PreliquifyConfig } from '@preliquify/cli';
+import type { PreliquifyConfig } from "@preliquify/cli";
 
 export default {
-  entryPoint: './src/snippets',
-  outLiquidDir: './snippets',
-  outClientDir: './assets',
+  entryPoint: "./src/snippets",
+  outLiquidDir: "./snippets",
+  outClientDir: "./assets",
 };
 ```
 
 **Component** (`src/snippets/ProductCard.tsx`):
 
 ```tsx
-import { createLiquidSnippet } from '@preliquify/preact';
+import { createLiquidSnippet } from "@preliquify/preact";
 
 function ProductCard({ product }) {
   return <div>{product.title}</div>;
 }
 
 export default createLiquidSnippet(ProductCard, {
-  product: 'product'
+  product: "product",
 });
 ```
 
 **Build:**
 
 ```bash
+# If installed:
 preliquify build
+
+# Or with npx/pnpx (no installation needed):
+npx @preliquify/cli build
 ```
 
 **Theme** (`theme.liquid`):

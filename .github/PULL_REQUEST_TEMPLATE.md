@@ -24,9 +24,9 @@ Closes #
 
 <!-- List the main changes made in this PR -->
 
-- 
-- 
-- 
+-
+-
+-
 
 ## Testing
 
@@ -40,9 +40,9 @@ Closes #
 
 <!-- Provide steps for reviewers to test your changes -->
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ## Checklist
 
@@ -63,4 +63,3 @@ Closes #
 ## Additional Notes
 
 <!-- Any additional information or context about the PR -->
-

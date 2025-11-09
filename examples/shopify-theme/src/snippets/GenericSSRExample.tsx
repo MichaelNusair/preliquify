@@ -1,5 +1,4 @@
 /** @jsxImportSource preact */
-import { h } from "preact";
 import { useTarget, rawLiquid, liquidJson } from "@preliquify/preact";
 
 interface YourComponentProps {

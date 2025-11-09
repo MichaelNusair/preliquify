@@ -1,5 +1,4 @@
 /** @jsxImportSource preact */
-import { h } from "preact";
 import { $, Conditional, For, Hydrate } from "@preliquify/preact";
 
 const isVip = $.contains($.var("customer.tags"), $.lit("vip"));

@@ -1,4 +1,4 @@
-import { h } from "preact";
+import { JSX } from "preact/jsx-runtime";
 import { useTarget } from "../runtime.js";
 
 /**
@@ -6,9 +6,9 @@ import { useTarget } from "../runtime.js";
  */
 interface TargetProps {
   /** Content to render when target is "liquid" (build time) */
-  liquid: h.JSX.Element | null;
+  liquid: JSX.Element | null;
   /** Content to render when target is "client" (runtime) */
-  client: h.JSX.Element | null;
+  client: JSX.Element | null;
 }
 
 /**

@@ -21,10 +21,11 @@ import { Conditional, $ } from "@preliquify/preact";
 
 <Conditional when={$.var("customer.email")}>
   <p>Welcome back!</p>
-</Conditional>
+</Conditional>;
 ```
 
 Compiles to:
+
 ```liquid
 {% if customer.email %}
   <p>Welcome back!</p>
@@ -85,7 +86,7 @@ Use logical operators for complex conditions:
 <Conditional when={$.var("customer")}>
   <div className="customer-area">
     <p>Hello, {{ customer.name }}</p>
-    
+
     <Conditional when={$.var("customer.orders_count")}>
       <p>Thanks for being a customer!</p>
     </Conditional>
@@ -111,6 +112,7 @@ import { For, $ } from "@preliquify/preact";
 ```
 
 Compiles to:
+
 ```liquid
 {% for product in products %}
   <div class="product">
@@ -151,20 +153,20 @@ Inside a `<For>` loop, you can access special Liquid variables:
   <div className="product">
     {/* forloop.index: 1-based index */}
     <span className="number">{{ forloop.index }}</span>
-    
+
     {/* forloop.index0: 0-based index */}
     <span data-index="{{ forloop.index0 }}">Product</span>
-    
+
     {/* forloop.first: true on first iteration */}
     {% if forloop.first %}
       <div className="first-product">Featured!</div>
     {% endif %}
-    
+
     {/* forloop.last: true on last iteration */}
     {% if forloop.last %}
       <div className="last-product">End of list</div>
     {% endif %}
-    
+
     <h3>{{ product.title }}</h3>
   </div>
 </For>
@@ -176,7 +178,7 @@ Inside a `<For>` loop, you can access special Liquid variables:
 <For each={$.var("collections")} as="collection">
   <div className="collection">
     <h2>{{ collection.title }}</h2>
-    
+
     <For each="collection.products" as="product">
       <div className="product">
         <h3>{{ product.title }}</h3>
@@ -222,15 +224,16 @@ import { Choose, $ } from "@preliquify/preact";
 <Choose
   value={$.var("product.type")}
   cases={{
-    "shirt": <div>This is a shirt</div>,
-    "pants": <div>These are pants</div>,
-    "shoes": <div>These are shoes</div>,
+    shirt: <div>This is a shirt</div>,
+    pants: <div>These are pants</div>,
+    shoes: <div>These are shoes</div>,
   }}
   default={<div>Other product type</div>}
-/>
+/>;
 ```
 
 Compiles to:
+
 ```liquid
 {% case product.type %}
   {% when "shirt" %}
@@ -250,9 +253,9 @@ Compiles to:
 <Choose
   value={$.var("product.type")}
   cases={{
-    "clothing": <span className="badge badge-blue">Clothing</span>,
-    "electronics": <span className="badge badge-green">Electronics</span>,
-    "home": <span className="badge badge-yellow">Home & Garden</span>,
+    clothing: <span className="badge badge-blue">Clothing</span>,
+    electronics: <span className="badge badge-green">Electronics</span>,
+    home: <span className="badge badge-yellow">Home & Garden</span>,
   }}
   default={<span className="badge">Product</span>}
 />
@@ -264,9 +267,9 @@ Compiles to:
 <Choose
   value={$.var("order.financial_status")}
   cases={{
-    "paid": <span className="status-paid">✓ Paid</span>,
-    "pending": <span className="status-pending">⏱ Pending</span>,
-    "refunded": <span className="status-refunded">↩ Refunded</span>,
+    paid: <span className="status-paid">✓ Paid</span>,
+    pending: <span className="status-pending">⏱ Pending</span>,
+    refunded: <span className="status-refunded">↩ Refunded</span>,
   }}
 />
 ```
@@ -324,7 +327,7 @@ function ComponentWithHooks({ gallery }) {
   // ✅ Hooks are safe here - always called (not conditionally)
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
-  
+
   return (
     <div>
       {gallery.map((item, i) => (
@@ -345,6 +348,7 @@ function ComponentWithHooks({ gallery }) {
 ### When to Use
 
 Use `<Target>` when you need to:
+
 - Render different content at build time vs runtime
 - Use hooks in your client-side rendering
 - Avoid linting warnings about conditional hooks
@@ -371,7 +375,7 @@ import { Hydrate } from "@preliquify/preact";
 >
   {/* Placeholder content shown until hydration */}
   <div>Loading gallery...</div>
-</Hydrate>
+</Hydrate>;
 ```
 
 ### Interactive Product Gallery
@@ -380,12 +384,12 @@ import { Hydrate } from "@preliquify/preact";
 // In your component file
 function ProductGallery({ images, title }) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  
+
   return (
     <div className="gallery">
       <img src={images[currentIndex].src} alt={title} />
-      <button onClick={() => setCurrentIndex(i => i - 1)}>Previous</button>
-      <button onClick={() => setCurrentIndex(i => i + 1)}>Next</button>
+      <button onClick={() => setCurrentIndex((i) => i - 1)}>Previous</button>
+      <button onClick={() => setCurrentIndex((i) => i + 1)}>Next</button>
     </div>
   );
 }
@@ -400,7 +404,7 @@ function ProductGallery({ images, title }) {
   }}
 >
   <img src="{{ product.featured_image }}" alt="{{ product.title }}" />
-</Hydrate>
+</Hydrate>;
 ```
 
 ### Add to Cart Button
@@ -408,20 +412,20 @@ function ProductGallery({ images, title }) {
 ```tsx
 function AddToCartButton({ variantId, productId }) {
   const [loading, setLoading] = useState(false);
-  
+
   const handleClick = async () => {
     setLoading(true);
-    await fetch('/cart/add.js', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    await fetch("/cart/add.js", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: variantId, quantity: 1 }),
     });
     setLoading(false);
   };
-  
+
   return (
     <button onClick={handleClick} disabled={loading}>
-      {loading ? 'Adding...' : 'Add to Cart'}
+      {loading ? "Adding..." : "Add to Cart"}
     </button>
   );
 }
@@ -436,7 +440,7 @@ function AddToCartButton({ variantId, productId }) {
   }}
 >
   <button>Add to Cart</button>
-</Hydrate>
+</Hydrate>;
 ```
 
 ## Best Practices
@@ -444,11 +448,15 @@ function AddToCartButton({ variantId, productId }) {
 ### Use Primitives for Liquid Data
 
 ❌ Don't use JavaScript array methods at build time:
+
 ```tsx
-{products.map(p => <div>{p.title}</div>)}
+{
+  products.map((p) => <div>{p.title}</div>);
+}
 ```
 
 ✅ Use `<For>` primitive:
+
 ```tsx
 <For each={$.var("products")} as="p">
   <div>{{ p.title }}</div>
@@ -494,4 +502,3 @@ function ProductCard({ product }: ProductCardProps) {
 - [Working with Expressions](./expressions.md)
 - [Client-Side Hydration](./hydration.md)
 - [Best Practices](./best-practices.md)
-

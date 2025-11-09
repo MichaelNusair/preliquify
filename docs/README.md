@@ -67,9 +67,9 @@ interface PreliquifyConfig {
   entryPoint: string | string[];
   outLiquidDir: string;
   outClientDir: string;
-  generateClientBundles?: boolean;  // Default: true
-  minify?: boolean;                 // Default: true
-  suffixDistFiles?: boolean;        // Default: true
+  generateClientBundles?: boolean; // Default: true
+  minify?: boolean; // Default: true
+  suffixDistFiles?: boolean; // Default: true
   verbose?: boolean;
   watch?: boolean;
 }

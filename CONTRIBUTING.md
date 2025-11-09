@@ -142,7 +142,7 @@ When reporting bugs, please include:
 2. **Steps to reproduce**: Minimal steps to reproduce the issue
 3. **Expected behavior**: What you expected to happen
 4. **Actual behavior**: What actually happened
-5. **Environment**: 
+5. **Environment**:
    - Node.js version
    - pnpm version
    - OS
@@ -168,6 +168,7 @@ pnpm publish-all-packages
 ```
 
 This script will:
+
 1. Build all packages
 2. Bump versions
 3. Publish to npm
@@ -205,7 +206,7 @@ pnpm test:coverage
 
 Example:
 
-```typescript
+````typescript
 /**
  * Creates a Liquid expression from a variable name
  * @param name - The Liquid variable name (e.g., "product.title")
@@ -219,7 +220,7 @@ Example:
 export function var(name: string): Expr<any> {
   // ...
 }
-```
+````
 
 ### README and Docs
 
@@ -237,4 +238,3 @@ If you have questions, feel free to:
 - Review the documentation
 
 Thank you for contributing to Preliquify! 🎉
-

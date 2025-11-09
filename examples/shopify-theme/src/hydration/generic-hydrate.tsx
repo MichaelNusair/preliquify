@@ -1,5 +1,27 @@
+import { FunctionComponent } from "preact";
+
 interface ComponentProps {
   [key: string]: any;
+}
+
+declare global {
+  interface Window {
+    preact: typeof import("preact");
+    YourComponent: FunctionComponent;
+    GenericHydration: {
+      hydrate: (
+        element: Element,
+        Component: any,
+        getProps: (el: Element) => ComponentProps
+      ) => void;
+      hydrateAll: (
+        selector: string,
+        Component: any,
+        getProps: (el: Element) => ComponentProps
+      ) => void;
+      hydrateYourComponent: () => void;
+    };
+  }
 }
 
 function parseDataAttribute(element: Element, attribute: string): any {
@@ -38,7 +60,7 @@ function hydrateComponent(
   }
 
   try {
-    const preact = (window as any).preact;
+    const preact = window.preact;
     if (!preact) {
       throw new Error("Preact not found. Make sure preact is loaded.");
     }
@@ -111,7 +133,7 @@ function hydrateYourComponent(): void {
     return;
   }
 
-  const YourComponent = (window as any).YourComponent;
+  const YourComponent = window.YourComponent;
   if (!YourComponent) {
     console.warn("[Hydration] YourComponent not found");
     return;
@@ -133,7 +155,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     document.addEventListener("DOMContentLoaded", hydrateYourComponent);
   } else {
     if ("requestIdleCallback" in window) {
-      (window as any).requestIdleCallback(hydrateYourComponent);
+      window.requestIdleCallback(hydrateYourComponent);
     } else {
       setTimeout(hydrateYourComponent, 0);
     }
@@ -147,5 +169,5 @@ export const GenericHydration = {
 };
 
 if (typeof window !== "undefined") {
-  (window as any).GenericHydration = GenericHydration;
+  window.GenericHydration = GenericHydration;
 }

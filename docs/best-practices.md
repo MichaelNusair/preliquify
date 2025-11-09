@@ -9,6 +9,7 @@ Guidelines for building maintainable and performant Shopify themes with Preliqui
 Each component should have a single responsibility:
 
 ✅ Good:
+
 ```tsx
 function ProductTitle({ title }) {
   return <h2 className="product-title">{title}</h2>;
@@ -25,6 +26,7 @@ function ProductPrice({ price, compareAtPrice }) {
 ```
 
 ❌ Avoid:
+
 ```tsx
 function ProductEverything({ product }) {
   // Huge component with 500 lines handling everything
@@ -48,7 +50,11 @@ interface ProductCardProps {
   showComparePrice?: boolean;
 }
 
-function ProductCard({ product, showVendor, showComparePrice }: ProductCardProps) {
+function ProductCard({
+  product,
+  showVendor,
+  showComparePrice,
+}: ProductCardProps) {
   // TypeScript provides autocomplete and catches errors
 }
 ```
@@ -78,13 +84,21 @@ export default createLiquidSnippet(ProductCard, {
 Always use Preliquify primitives when working with Liquid collections:
 
 ❌ Don't use JavaScript methods:
+
 ```tsx
-{products.map(p => <ProductCard product={p} />)}
-{products.filter(p => p.available).length}
-{products.sort((a, b) => a.price - b.price)}
+{
+  products.map((p) => <ProductCard product={p} />);
+}
+{
+  products.filter((p) => p.available).length;
+}
+{
+  products.sort((a, b) => a.price - b.price);
+}
 ```
 
 ✅ Use Preliquify primitives:
+
 ```tsx
 <For each={$.var("products")} as="p">
   <ProductCard product={p} />
@@ -105,7 +119,7 @@ In loops and conditionals, access Liquid variables as strings:
     {/* Correct - Liquid will replace this */}
     <h3>{{ product.title }}</h3>
     <p>${{ product.price }}</p>
-    
+
     {/* Incorrect - won't work */}
     <h3>{product.title}</h3>
   </div>
@@ -140,6 +154,7 @@ function ProductList({ products }) {
 ```
 
 **Why use `<Target>`?**
+
 - ✅ Avoids linting warnings about conditional hooks
 - ✅ Cleaner code - no manual `useTarget()` calls
 - ✅ Separates liquid and client rendering logic clearly
@@ -154,7 +169,7 @@ import { useTarget, For, $ } from "@preliquify/preact";
 
 function ProductList({ products }) {
   const target = useTarget();
-  
+
   if (target === "liquid") {
     // Build time - use Liquid primitives
     return (
@@ -163,7 +178,7 @@ function ProductList({ products }) {
       </For>
     );
   }
-  
+
   // Runtime - use JavaScript
   // ⚠️ Important: Don't call hooks conditionally here!
   // If you need hooks, extract to a separate component:
@@ -189,6 +204,7 @@ function ProductListClient({ products }) {
 Only hydrate components that need interactivity:
 
 ✅ Good - static component, no hydration needed:
+
 ```tsx
 function ProductCard({ product }) {
   return (
@@ -202,6 +218,7 @@ function ProductCard({ product }) {
 ```
 
 ❌ Unnecessary hydration:
+
 ```tsx
 // Don't hydrate if the component is purely static
 <Hydrate id="card" component="ProductCard" props={{...}}>
@@ -286,28 +303,28 @@ Create custom hooks for reusable logic:
 export function useCart() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  
+
   const addItem = async (variantId: string) => {
     setLoading(true);
-    const res = await fetch('/cart/add.js', {
-      method: 'POST',
+    const res = await fetch("/cart/add.js", {
+      method: "POST",
       body: JSON.stringify({ id: variantId, quantity: 1 }),
     });
     const cart = await res.json();
     setItems(cart.items);
     setLoading(false);
   };
-  
+
   return { items, loading, addItem };
 }
 
 // Usage
 function AddToCartButton({ variantId }) {
   const { loading, addItem } = useCart();
-  
+
   return (
     <button onClick={() => addItem(variantId)} disabled={loading}>
-      {loading ? 'Adding...' : 'Add to Cart'}
+      {loading ? "Adding..." : "Add to Cart"}
     </button>
   );
 }
@@ -333,11 +350,9 @@ function ProductCard({ product, compareAtPrice }) {
     <div>
       <h3>{product.title}</h3>
       <span className="price">${product.price}</span>
-      
+
       {/* Only show if available */}
-      {compareAtPrice && (
-        <span className="compare-at">${compareAtPrice}</span>
-      )}
+      {compareAtPrice && <span className="compare-at">${compareAtPrice}</span>}
     </div>
   );
 }
@@ -353,9 +368,9 @@ function ProductGallery({ images, title }) {
   if (!images || !Array.isArray(images) || images.length === 0) {
     return <div className="error">No images available</div>;
   }
-  
+
   const [currentIndex, setCurrentIndex] = useState(0);
-  
+
   return (
     <div className="gallery">
       <img src={images[currentIndex].src} alt={title} />
@@ -372,21 +387,21 @@ Wrap API calls in try-catch blocks:
 ```tsx
 async function addToCart(variantId: string) {
   try {
-    const res = await fetch('/cart/add.js', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/cart/add.js", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: variantId, quantity: 1 }),
     });
-    
+
     if (!res.ok) {
-      throw new Error('Failed to add to cart');
+      throw new Error("Failed to add to cart");
     }
-    
+
     return await res.json();
   } catch (error) {
-    console.error('Add to cart error:', error);
+    console.error("Add to cart error:", error);
     // Show user-friendly error message
-    alert('Failed to add item to cart. Please try again.');
+    alert("Failed to add item to cart. Please try again.");
   }
 }
 ```
@@ -417,7 +432,11 @@ Before deploying to production:
 When debugging build issues:
 
 ```bash
+# If installed:
 preliquify build --verbose
+
+# Or with npx:
+npx @preliquify/cli build --verbose
 ```
 
 This shows detailed error messages and stack traces.
@@ -443,19 +462,13 @@ This shows detailed error messages and stack traces.
 ### Provide Alt Text
 
 ```tsx
-<img 
-  src="{{ product.featured_image }}" 
-  alt="{{ product.title }}"
-/>
+<img src="{{ product.featured_image }}" alt="{{ product.title }}" />
 ```
 
 ### Use ARIA Labels
 
 ```tsx
-<button 
-  onClick={handleAddToCart}
-  aria-label="Add {{ product.title }} to cart"
->
+<button onClick={handleAddToCart} aria-label="Add {{ product.title }} to cart">
   Add to Cart
 </button>
 ```
@@ -468,9 +481,9 @@ Ensure interactive elements are keyboard accessible:
 function ProductGallery({ images }) {
   return (
     <div className="gallery">
-      <button 
-        onClick={() => setIndex(i => i - 1)}
-        onKeyPress={(e) => e.key === 'Enter' && setIndex(i => i - 1)}
+      <button
+        onClick={() => setIndex((i) => i - 1)}
+        onKeyPress={(e) => e.key === "Enter" && setIndex((i) => i - 1)}
         aria-label="Previous image"
       >
         ←
@@ -502,12 +515,12 @@ Always validate data from APIs:
 async function fetchProduct(id: string) {
   const res = await fetch(`/products/${id}.js`);
   const data = await res.json();
-  
+
   // Validate response
-  if (!data || typeof data.id !== 'string') {
-    throw new Error('Invalid product data');
+  if (!data || typeof data.id !== "string") {
+    throw new Error("Invalid product data");
   }
-  
+
   return data;
 }
 ```
@@ -519,11 +532,13 @@ async function fetchProduct(id: string) {
 Decide whether to commit generated Liquid files:
 
 **Option 1: Commit them** (recommended for teams)
+
 - Add `snippets/*.liquid` and `assets/preliquify*.js` to git
 - Ensures everyone has same output
 - Easy to review changes
 
 **Option 2: Don't commit them** (for advanced users)
+
 - Add to `.gitignore`
 - Requires build step in CI/CD
 - Smaller repository
@@ -564,7 +579,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: "pnpm"
       - run: pnpm install
       - run: pnpm preliquify build
       - uses: actions/upload-artifact@v4
@@ -587,4 +602,3 @@ Always test in staging before production:
 - [API Reference](./api-reference.md)
 - [Examples](../examples/)
 - [Contributing](../CONTRIBUTING.md)
-

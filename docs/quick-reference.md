@@ -3,9 +3,15 @@
 ## Build
 
 ```bash
+# If installed:
 preliquify build
 preliquify build --watch
 preliquify build --verbose
+
+# Or with npx (no installation needed):
+npx @preliquify/cli build
+npx @preliquify/cli build --watch
+npx @preliquify/cli build --verbose
 ```
 
 ## Config
@@ -13,53 +19,53 @@ preliquify build --verbose
 ```typescript
 // preliquify.config.ts
 export default {
-  entryPoint: './src/snippets',
-  outLiquidDir: './snippets',
-  outClientDir: './assets',
+  entryPoint: "./src/snippets",
+  outLiquidDir: "./snippets",
+  outClientDir: "./assets",
 };
 ```
 
 ## Component
 
 ```tsx
-import { createLiquidSnippet } from '@preliquify/preact';
+import { createLiquidSnippet } from "@preliquify/preact";
 
 function MyComponent({ product }) {
   return <div>{product.title}</div>;
 }
 
 export default createLiquidSnippet(MyComponent, {
-  product: 'product'
+  product: "product",
 });
 ```
 
 ## For Loop
 
 ```tsx
-import { For, $ } from '@preliquify/preact';
+import { For, $ } from "@preliquify/preact";
 
-<For each={$.var('products')} as="product">
+<For each={$.var("products")} as="product">
   {(product, i) => <div key={i}>{product.title}</div>}
-</For>
+</For>;
 ```
 
 ## Conditional
 
 ```tsx
-import { Conditional, $ } from '@preliquify/preact';
+import { Conditional, $ } from "@preliquify/preact";
 
-<Conditional when={$.var('customer.logged_in')}>
+<Conditional when={$.var("customer.logged_in")}>
   <p>Welcome!</p>
-</Conditional>
+</Conditional>;
 ```
 
 ## Expressions
 
 ```tsx
-$.var('product.title')                    // Variable
-$.lit('hello')                            // Literal
-$.eq($.var('type'), $.lit('shirt'))      // Equal
-$.contains($.var('tags'), $.lit('sale')) // Contains
+$.var("product.title"); // Variable
+$.lit("hello"); // Literal
+$.eq($.var("type"), $.lit("shirt")); // Equal
+$.contains($.var("tags"), $.lit("sale")); // Contains
 ```
 
 ## Theme

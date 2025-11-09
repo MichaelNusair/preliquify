@@ -1,1 +1,184 @@
-"use strict";var PreliquifyRuntime=(()=>{var d=Object.defineProperty;var g=Object.getOwnPropertyDescriptor;var b=Object.getOwnPropertyNames,f=Object.getOwnPropertySymbols;var y=Object.prototype.hasOwnProperty,h=Object.prototype.propertyIsEnumerable;var p=(e,t,r)=>t in e?d(e,t,{enumerable:!0,configurable:!0,writable:!0,value:r}):e[t]=r,l=(e,t)=>{for(var r in t||(t={}))y.call(t,r)&&p(e,r,t[r]);if(f)for(var r of f(t))h.call(t,r)&&p(e,r,t[r]);return e};var q=(e,t)=>{for(var r in t)d(e,r,{get:t[r],enumerable:!0})},E=(e,t,r,o)=>{if(t&&typeof t=="object"||typeof t=="function")for(let n of b(t))!y.call(e,n)&&n!==r&&d(e,n,{get:()=>t[n],enumerable:!(o=g(t,n))||o.enumerable});return e};var P=e=>E(d({},"__esModule",{value:!0}),e);var I={};q(I,{Preliquify:()=>w});function m(e,t,r,o){try{let n=window.preact;if(!n)throw new Error("Preact not found. Make sure preact is loaded before hydration.");let s=n.h(t,r);n.render(s,e);let a=e.getAttribute("data-preliq-id");a&&o.mounted.set(a,{element:e,Component:t,props:r})}catch(n){o.errors.push(n),o.debug&&(console.error("[Preliquify] Hydration error:",n),console.error("Element:",e),console.error("Component:",t),console.error("Props:",r)),e.setAttribute("data-preliq-error","true"),e.dispatchEvent(new CustomEvent("preliquify:error",{detail:{error:n,component:t.name||"Unknown",props:r},bubbles:!0}))}}function v(e){let t=e.getAttribute("data-preliq-props");if(!t)return{};try{return JSON.parse(t)}catch(r){return console.warn("[Preliquify] Failed to parse props:",t,r),{}}}function R(e){let t=e.getBoundingClientRect(),r=Math.max(document.documentElement.clientHeight,window.innerHeight),o=Math.max(document.documentElement.clientWidth,window.innerWidth),n=100;return!(t.bottom<-n||t.top>r+n||t.right<-n||t.left>o+n)}function c(e){let t=document.querySelectorAll("[data-preliq-island]:not([data-preliq-hydrated])"),r=[],o=[];if(t.forEach(n=>{R(n)?r.push(n):o.push(n)}),r.forEach(n=>{u(n,e)}),o.length>0&&"IntersectionObserver"in window){let n=new IntersectionObserver(s=>{s.forEach(a=>{a.isIntersecting&&(u(a.target,e),n.unobserve(a.target))})},{rootMargin:"100px"});o.forEach(s=>n.observe(s))}else o.forEach(n=>u(n,e))}function u(e,t){var a;if(e.hasAttribute("data-preliq-hydrated"))return;let r=e.getAttribute("data-preliq-island"),o=e.getAttribute("data-preliq-id");if(!r){console.warn("[Preliquify] Island missing component name:",e);return}let n=t.components.get(r)||((a=window.Preliquify)==null?void 0:a[r]);if(!n){console.warn(`[Preliquify] Component "${r}" not found`),e.setAttribute("data-preliq-error","component-not-found");return}let s=v(e);m(e,n,s,t),e.setAttribute("data-preliq-hydrated","true"),e.dispatchEvent(new CustomEvent("preliquify:hydrated",{detail:{id:o,component:r},bubbles:!0}))}function A(){if(window.e)return window.e;let e={components:new Map,mounted:new Map,errors:[],debug:window.t||!1};return window.e=e,window.Preliquify||(window.Preliquify={}),e}var i=A();document.readyState==="loading"?document.addEventListener("DOMContentLoaded",()=>c(i)):"requestIdleCallback"in window?window.requestIdleCallback(()=>c(i)):setTimeout(()=>c(i),0);var w={register(e,t){i.components.set(e,t),window.Preliquify[e]=t},hydrate(e){(e||document.body).querySelectorAll("[data-preliq-island]:not([data-preliq-hydrated])").forEach(o=>u(o,i))},getComponent(e){return i.mounted.get(e)},getErrors(){return[...i.errors]},setDebug(e){i.debug=e},unmount(e){let t=i.mounted.get(e);if(!t)return!1;let r=window.preact;return r?(r.render(null,t.element),i.mounted.delete(e),t.element.removeAttribute("data-preliq-hydrated"),!0):!1},update(e,t){let r=i.mounted.get(e);if(!r)return!1;let o=l(l({},r.props),t);return m(r.element,r.Component,o,i),r.props=o,!0}};window.r=w;return P(I);})();
+"use strict";
+var PreliquifyRuntime = (() => {
+  var d = Object.defineProperty;
+  var g = Object.getOwnPropertyDescriptor;
+  var b = Object.getOwnPropertyNames,
+    f = Object.getOwnPropertySymbols;
+  var y = Object.prototype.hasOwnProperty,
+    h = Object.prototype.propertyIsEnumerable;
+  var p = (e, t, r) =>
+      t in e
+        ? d(e, t, { enumerable: !0, configurable: !0, writable: !0, value: r })
+        : (e[t] = r),
+    l = (e, t) => {
+      for (var r in t || (t = {})) y.call(t, r) && p(e, r, t[r]);
+      if (f) for (var r of f(t)) h.call(t, r) && p(e, r, t[r]);
+      return e;
+    };
+  var q = (e, t) => {
+      for (var r in t) d(e, r, { get: t[r], enumerable: !0 });
+    },
+    E = (e, t, r, o) => {
+      if ((t && typeof t == "object") || typeof t == "function")
+        for (let n of b(t))
+          !y.call(e, n) &&
+            n !== r &&
+            d(e, n, {
+              get: () => t[n],
+              enumerable: !(o = g(t, n)) || o.enumerable,
+            });
+      return e;
+    };
+  var P = (e) => E(d({}, "__esModule", { value: !0 }), e);
+  var I = {};
+  q(I, { Preliquify: () => w });
+  function m(e, t, r, o) {
+    try {
+      let n = window.preact;
+      if (!n)
+        throw new Error(
+          "Preact not found. Make sure preact is loaded before hydration."
+        );
+      let s = n.h(t, r);
+      n.render(s, e);
+      let a = e.getAttribute("data-preliq-id");
+      a && o.mounted.set(a, { element: e, Component: t, props: r });
+    } catch (n) {
+      (o.errors.push(n),
+        o.debug &&
+          (console.error("[Preliquify] Hydration error:", n),
+          console.error("Element:", e),
+          console.error("Component:", t),
+          console.error("Props:", r)),
+        e.setAttribute("data-preliq-error", "true"),
+        e.dispatchEvent(
+          new CustomEvent("preliquify:error", {
+            detail: { error: n, component: t.name || "Unknown", props: r },
+            bubbles: !0,
+          })
+        ));
+    }
+  }
+  function v(e) {
+    let t = e.getAttribute("data-preliq-props");
+    if (!t) return {};
+    try {
+      return JSON.parse(t);
+    } catch (r) {
+      return (console.warn("[Preliquify] Failed to parse props:", t, r), {});
+    }
+  }
+  function R(e) {
+    let t = e.getBoundingClientRect(),
+      r = Math.max(document.documentElement.clientHeight, window.innerHeight),
+      o = Math.max(document.documentElement.clientWidth, window.innerWidth),
+      n = 100;
+    return !(t.bottom < -n || t.top > r + n || t.right < -n || t.left > o + n);
+  }
+  function c(e) {
+    let t = document.querySelectorAll(
+        "[data-preliq-island]:not([data-preliq-hydrated])"
+      ),
+      r = [],
+      o = [];
+    if (
+      (t.forEach((n) => {
+        R(n) ? r.push(n) : o.push(n);
+      }),
+      r.forEach((n) => {
+        u(n, e);
+      }),
+      o.length > 0 && "IntersectionObserver" in window)
+    ) {
+      let n = new IntersectionObserver(
+        (s) => {
+          s.forEach((a) => {
+            a.isIntersecting && (u(a.target, e), n.unobserve(a.target));
+          });
+        },
+        { rootMargin: "100px" }
+      );
+      o.forEach((s) => n.observe(s));
+    } else o.forEach((n) => u(n, e));
+  }
+  function u(e, t) {
+    var a;
+    if (e.hasAttribute("data-preliq-hydrated")) return;
+    let r = e.getAttribute("data-preliq-island"),
+      o = e.getAttribute("data-preliq-id");
+    if (!r) {
+      console.warn("[Preliquify] Island missing component name:", e);
+      return;
+    }
+    let n =
+      t.components.get(r) || ((a = window.Preliquify) == null ? void 0 : a[r]);
+    if (!n) {
+      (console.warn(`[Preliquify] Component "${r}" not found`),
+        e.setAttribute("data-preliq-error", "component-not-found"));
+      return;
+    }
+    let s = v(e);
+    (m(e, n, s, t),
+      e.setAttribute("data-preliq-hydrated", "true"),
+      e.dispatchEvent(
+        new CustomEvent("preliquify:hydrated", {
+          detail: { id: o, component: r },
+          bubbles: !0,
+        })
+      ));
+  }
+  function A() {
+    if (window.e) return window.e;
+    let e = {
+      components: new Map(),
+      mounted: new Map(),
+      errors: [],
+      debug: window.t || !1,
+    };
+    return ((window.e = e), window.Preliquify || (window.Preliquify = {}), e);
+  }
+  var i = A();
+  document.readyState === "loading"
+    ? document.addEventListener("DOMContentLoaded", () => c(i))
+    : "requestIdleCallback" in window
+      ? window.requestIdleCallback(() => c(i))
+      : setTimeout(() => c(i), 0);
+  var w = {
+    register(e, t) {
+      (i.components.set(e, t), (window.Preliquify[e] = t));
+    },
+    hydrate(e) {
+      (e || document.body)
+        .querySelectorAll("[data-preliq-island]:not([data-preliq-hydrated])")
+        .forEach((o) => u(o, i));
+    },
+    getComponent(e) {
+      return i.mounted.get(e);
+    },
+    getErrors() {
+      return [...i.errors];
+    },
+    setDebug(e) {
+      i.debug = e;
+    },
+    unmount(e) {
+      let t = i.mounted.get(e);
+      if (!t) return !1;
+      let r = window.preact;
+      return r
+        ? (r.render(null, t.element),
+          i.mounted.delete(e),
+          t.element.removeAttribute("data-preliq-hydrated"),
+          !0)
+        : !1;
+    },
+    update(e, t) {
+      let r = i.mounted.get(e);
+      if (!r) return !1;
+      let o = l(l({}, r.props), t);
+      return (m(r.element, r.Component, o, i), (r.props = o), !0);
+    },
+  };
+  window.r = w;
+  return P(I);
+})();

@@ -17,8 +17,7 @@ yarn add @preliquify/core
 ## Usage
 
 ```tsx
-import { For, Conditional, $ } from '@preliquify/core';
+import { For, Conditional, $ } from "@preliquify/core";
 ```
 
 For complete documentation, examples, and guides, please see the [main repository](https://github.com/MichaelNusair/preliquify).
-

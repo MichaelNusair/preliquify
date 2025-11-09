@@ -1,8 +1,7 @@
-import { h } from "preact";
 import renderToString from "preact-render-to-string";
 import { TargetProvider } from "@preliquify/core";
 
-import type { ComponentType } from "preact";
+import { h, type ComponentType } from "preact";
 
 export async function renderComponentToLiquid(
   mod: Record<string, any>,

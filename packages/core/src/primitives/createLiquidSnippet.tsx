@@ -1,4 +1,3 @@
-import { h } from "preact";
 import { useTarget } from "../runtime.js";
 import { rawLiquid } from "../liquid.js";
 import type { ComponentType } from "preact";
@@ -115,11 +114,11 @@ interface CreateLiquidSnippetOptions {
  * Liquid expressions will fail at build time. Use Preliquify primitives (For, Conditional)
  * instead for Liquid data.
  */
-export function createLiquidSnippet<P extends Record<string, unknown>>(
+export function createLiquidSnippet<P extends object>(
   Component: ComponentType<P>,
   propMapping: Record<keyof P, PropMapping>,
   options: CreateLiquidSnippetOptions = {}
-): ComponentType {
+): ComponentType<P> {
   const componentName =
     options.componentName ||
     Component.displayName ||
@@ -153,11 +152,13 @@ export function createLiquidSnippet<P extends Record<string, unknown>>(
 
     const firstProp = propEntries[0];
     const firstPropName = String(firstProp[0]);
-    const firstMapping = firstProp[1];
+    const firstMapping = firstProp[1] as PropMapping;
     const firstLiquidVar =
       typeof firstMapping === "string" ? firstMapping : firstMapping.liquidVar;
     const firstDefault =
-      typeof firstMapping === "object" && "default" in firstMapping
+      typeof firstMapping === "object" &&
+      firstMapping !== null &&
+      "default" in firstMapping
         ? firstMapping.default
         : undefined;
 
@@ -182,11 +183,16 @@ export function createLiquidSnippet<P extends Record<string, unknown>>(
 
     for (let i = 1; i < propEntries.length; i++) {
       const [propName, mapping] = propEntries[i];
+      const mappingTyped = mapping as PropMapping;
       const liquidVar =
-        typeof mapping === "string" ? mapping : mapping.liquidVar;
+        typeof mappingTyped === "string"
+          ? mappingTyped
+          : mappingTyped.liquidVar;
       const defaultValue =
-        typeof mapping === "object" && "default" in mapping
-          ? mapping.default
+        typeof mappingTyped === "object" &&
+        mappingTyped !== null &&
+        "default" in mappingTyped
+          ? mappingTyped.default
           : undefined;
 
       const escapedPropName = String(propName).replace(/'/g, "''");
@@ -235,11 +241,16 @@ export function createLiquidSnippet<P extends Record<string, unknown>>(
     const props: Partial<P> = {};
 
     for (const [propName, mapping] of Object.entries(propMapping)) {
+      const mappingTyped = mapping as PropMapping;
       const liquidVar =
-        typeof mapping === "string" ? mapping : mapping.liquidVar;
+        typeof mappingTyped === "string"
+          ? mappingTyped
+          : mappingTyped.liquidVar;
       const defaultValue =
-        typeof mapping === "object" && "default" in mapping
-          ? mapping.default
+        typeof mappingTyped === "object" &&
+        mappingTyped !== null &&
+        "default" in mappingTyped
+          ? mappingTyped.default
           : undefined;
 
       if (defaultValue !== undefined) {
