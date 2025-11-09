@@ -128,6 +128,36 @@ export type LiquidProps<P> = {
 };
 
 /**
+ * Helper type to allow a single prop to be either its value or an Expr
+ *
+ * Use this for individual props that can be passed from parent components
+ * using $.from() to track Liquid paths.
+ *
+ * @template T - The type of the prop value
+ *
+ * @example
+ * ```tsx
+ * interface MediaGalleryProps {
+ *   media: ProductMetafield['gallery'];
+ *   designSettings: PropWithExpr<DesignSettings>;  // Can be DesignSettings or Expr<DesignSettings>
+ *   productId: string;
+ * }
+ *
+ * // In parent:
+ * <MediaGallery
+ *   designSettings={$.from("storeMetafield.designSettings", props.storeMetafield.designSettings)}
+ * />
+ *
+ * // In child:
+ * const MediaGallery = ({ designSettings }: MediaGalleryProps) => {
+ *   const settings = $.asExpr(designSettings);  // Convert to Expr if needed
+ *   const layoutType = $.prop(settings, "desktopLayoutType");
+ * };
+ * ```
+ */
+export type PropWithExpr<T> = T | Expr<T>;
+
+/**
  * Enhanced expression builder type definitions
  *
  * Extended API for building more complex Liquid expressions with type safety

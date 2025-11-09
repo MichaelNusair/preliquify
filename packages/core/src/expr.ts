@@ -196,12 +196,18 @@ export const $ = {
    *   // ...
    * />
    *
+   * // In child component types:
+   * interface MediaGalleryProps {
+   *   designSettings: PropWithExpr<DesignSettings>;  // Can be DesignSettings or Expr<DesignSettings>
+   * }
+   *
    * // In child component:
    * const MediaGallery = ({ designSettings, ... }) => {
-   *   const mobileSettings = $.prop(designSettings, "mobileSettings");
+   *   const settings = $.asExpr(designSettings);  // Convert to Expr if needed
+   *   const mobileSettings = $.prop(settings, "mobileSettings");
    *   const layoutType = $.prop(mobileSettings, "layoutType");
    *   // Liquid: storeMetafield.designSettings.mobileSettings.layoutType
-   *   // Runtime: designSettings.mobileSettings.layoutType
+   *   // Runtime: designSettings.mobileSettings.layoutType (from .value)
    * };
    * ```
    */
@@ -210,6 +216,38 @@ export const $ = {
       () => liquidPath,
       () => () => runtimeValue
     );
+  },
+
+  /**
+   * Converts a value to an Expr if it isn't already.
+   * Helper for components that accept PropWithExpr<T> types.
+   *
+   * @template T - The type of the value
+   * @param value - Either a raw value or an Expr
+   * @param fallbackPath - Optional Liquid path to use if value is not an Expr (defaults to empty string)
+   * @returns An Expr
+   *
+   * @example
+   * ```tsx
+   * interface Props {
+   *   designSettings: PropWithExpr<DesignSettings>;
+   * }
+   *
+   * const MediaGallery = ({ designSettings }: Props) => {
+   *   // Convert to Expr (uses empty path if not already an Expr)
+   *   const settings = $.asExpr(designSettings);
+   *   const layoutType = $.prop(settings, "desktopLayoutType");
+   * };
+   * ```
+   */
+  asExpr<T>(value: T | Expr<T>, fallbackPath: string = ""): Expr<T> {
+    // If already an Expr, return it
+    if (typeof value === "object" && value !== null && "toLiquid" in value) {
+      return value as Expr<T>;
+    }
+
+    // Otherwise, wrap it with $.from()
+    return $.from(fallbackPath, value as T);
   },
 
   /**
