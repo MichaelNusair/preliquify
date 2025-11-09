@@ -358,6 +358,72 @@ function ProductCard({ product, compareAtPrice }) {
 }
 ```
 
+### Handle JSON String Props
+
+When components receive JSON string props from Liquid (common in Shopify apps), use the `jsonParse` helper to safely parse them:
+
+❌ **Don't parse JSON directly** - this fails at build time:
+
+```tsx
+interface Props {
+  mediaCSR?: string; // JSON array string from Liquid
+}
+
+function MediaGallery({ mediaCSR }: Props) {
+  // This fails at build time because mediaCSR is undefined or a Liquid expression
+  const media = mediaCSR ? JSON.parse(mediaCSR) : [];
+  
+  return (
+    <div>
+      {media.map(item => (
+        <img key={item.id} src={item.url} alt={item.alt} />
+      ))}
+    </div>
+  );
+}
+```
+
+✅ **Use `jsonParse` helper** - works at both build time and runtime:
+
+```tsx
+import { jsonParse, createLiquidSnippet } from '@preliquify/preact';
+
+interface Props {
+  mediaCSR?: string; // JSON array string from Liquid
+  design?: string;   // JSON object string from Liquid
+}
+
+function MediaGallery({ mediaCSR, design }: Props) {
+  // Safely parse JSON - returns default value at build time, actual data at runtime
+  const media = jsonParse(mediaCSR, []);
+  const settings = jsonParse(design, { theme: 'light', layout: 'grid' });
+
+  return (
+    <div className={`gallery gallery-${settings.layout}`}>
+      {media.map(item => (
+        <img key={item.id} src={item.url} alt={item.alt} />
+      ))}
+    </div>
+  );
+}
+
+export default createLiquidSnippet(MediaGallery, {
+  mediaCSR: 'mediaCSR',
+  design: 'design',
+});
+```
+
+**How `jsonParse` works:**
+- **At build time**: Detects Liquid expression strings (like `"{{ data | json | escape }}"`) and returns the default value
+- **At runtime**: Parses the actual JSON string and returns the parsed value
+- **On error**: Returns the default value if parsing fails
+
+**Benefits:**
+- ✅ No code duplication - write the component once
+- ✅ Safe at build time - doesn't crash on Liquid expressions
+- ✅ Works at runtime - parses actual JSON data
+- ✅ Type-safe - supports TypeScript generics
+
 ### Validate Props at Runtime
 
 For hydrated components, validate props:

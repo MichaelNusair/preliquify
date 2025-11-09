@@ -4,6 +4,7 @@ export * from "./runtime.js";
 export * from "./liquid.js";
 export * from "./types.js";
 export * from "./ssr.js";
+export * from "./json-parse.js";
 export * from "./primitives/Conditional.js";
 export * from "./primitives/For.js";
 export * from "./primitives/Choose.js";
