@@ -19,7 +19,7 @@ export function createExpr<T>(
   // Add toString() and valueOf() to allow primitive conversion
   // This is needed when Expr objects are used in JSX contexts (e.g., inside For loops)
   Object.defineProperty(expr, "toString", {
-    value: function () {
+    value() {
       return toLiquid();
     },
     enumerable: false,
@@ -27,7 +27,7 @@ export function createExpr<T>(
   });
 
   Object.defineProperty(expr, "valueOf", {
-    value: function () {
+    value() {
       return toLiquid();
     },
     enumerable: false,
@@ -69,7 +69,7 @@ export const $ = {
    *
    * @example
    * ```tsx
-   * $.lit("hello")     // => "hello" in Liquid
+   * $.lit("hello")     // => 'hello' in Liquid (single quotes to avoid HTML escaping)
    * $.lit(42)          // => 42 in Liquid
    * $.lit(true)        // => true in Liquid
    * $.lit(null)        // => null in Liquid
@@ -77,7 +77,17 @@ export const $ = {
    */
   lit<T>(v: T): Expr<T> {
     return createExpr(
-      () => JSON.stringify(v),
+      () => {
+        // Use single quotes for strings in Liquid to avoid HTML escaping issues
+        // Liquid uses single quotes in conditionals: {% if var == 'value' %}
+        if (typeof v === "string") {
+          // Escape single quotes by doubling them (Liquid convention)
+          const escaped = v.replace(/'/g, "''");
+          return `'${escaped}'`;
+        }
+        // For other types, use JSON.stringify (numbers, booleans, null)
+        return String(v);
+      },
       () => () => v
     );
   },
@@ -109,6 +119,28 @@ export const $ = {
         return cur as T;
       }
     );
+  },
+
+  /**
+   * Helper to build nested Liquid variable paths dynamically
+   *
+   * @param basePath - The base Liquid variable path (e.g., "designSettings")
+   * @param segments - Additional path segments to append
+   * @returns The full Liquid variable path
+   *
+   * @example
+   * ```tsx
+   * $.path("designSettings", "desktopSettings", "layoutType")
+   * // => "designSettings.desktopSettings.layoutType"
+   *
+   * const base = "designSettings";
+   * const path = $.path(base, "desktopSettings", "desktopLayoutType");
+   * $.var(path)  // Access designSettings.desktopSettings.desktopLayoutType
+   * ```
+   */
+  path(basePath: string, ...segments: string[]): string {
+    if (segments.length === 0) return basePath;
+    return [basePath, ...segments].join(".");
   },
 
   /**
