@@ -1,7 +1,6 @@
 // Core type definitions for PreLiquify
 
 import type { ComponentType, JSX, VNode } from "preact";
-import type { RenderTarget } from "./runtime.js";
 
 /**
  * Expression type that can be evaluated in both Liquid and client contexts
@@ -11,68 +10,6 @@ export interface Expr<T> {
   toLiquid(): string;
   /** Convert expression to client-side JavaScript function */
   toClient(): (ctx: any) => T;
-}
-
-/**
- * Liquid variable context available in templates
- */
-export interface LiquidContext {
-  // Shop context
-  shop?: {
-    name?: string;
-    currency?: string;
-    locale?: string;
-    domain?: string;
-    [key: string]: any;
-  };
-
-  // Customer context
-  customer?: {
-    id?: string;
-    email?: string;
-    name?: string;
-    first_name?: string;
-    last_name?: string;
-    tags?: string[];
-    [key: string]: any;
-  };
-
-  // Product context
-  product?: {
-    id?: string;
-    title?: string;
-    price?: number;
-    available?: boolean;
-    variants?: any[];
-    media?: any[];
-    [key: string]: any;
-  };
-
-  // Collection context
-  collection?: {
-    id?: string;
-    title?: string;
-    products?: any[];
-    [key: string]: any;
-  };
-
-  // Cart context
-  cart?: {
-    item_count?: number;
-    total_price?: number;
-    items?: any[];
-    [key: string]: any;
-  };
-
-  // Page context
-  page?: {
-    title?: string;
-    content?: string;
-    [key: string]: any;
-  };
-
-  // Additional contexts
-  [key: string]: any;
 }
 
 /**

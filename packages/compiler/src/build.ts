@@ -150,6 +150,11 @@ async function setupTempNodeModules(
 
 function createBrowserPolyfills() {
   return `
+    // SSR detection flag
+    if (typeof globalThis.__PRELIQUIFY_SSR__ === 'undefined') {
+      globalThis.__PRELIQUIFY_SSR__ = typeof window === 'undefined';
+    }
+    
     if (typeof globalThis.window === 'undefined') {
       globalThis.window = {
         location: { 
@@ -174,20 +179,82 @@ function createBrowserPolyfills() {
           back: () => {},
           forward: () => {},
         },
+        IntersectionObserver: typeof globalThis.IntersectionObserver !== 'undefined' 
+          ? globalThis.IntersectionObserver 
+          : function() {
+              return {
+                observe: () => {},
+                unobserve: () => {},
+                disconnect: () => {},
+              };
+            },
+        requestIdleCallback: typeof globalThis.requestIdleCallback !== 'undefined'
+          ? globalThis.requestIdleCallback
+          : (cb) => setTimeout(cb, 0),
       };
     }
+    
+    // localStorage polyfill for SSR
+    if (typeof globalThis.localStorage === 'undefined') {
+      const storage = new Map();
+      globalThis.localStorage = {
+        getItem: (key) => storage.get(String(key)) || null,
+        setItem: (key, value) => storage.set(String(key), String(value)),
+        removeItem: (key) => storage.delete(String(key)),
+        clear: () => storage.clear(),
+        get length() { return storage.size; },
+        key: (index) => {
+          const keys = Array.from(storage.keys());
+          return keys[index] || null;
+        },
+      };
+    }
+    
+    // HTMLElement class polyfill for SSR instanceof checks
+    if (typeof globalThis.HTMLElement === 'undefined') {
+      globalThis.HTMLElement = class HTMLElement {
+        constructor() {}
+        setAttribute() {}
+        getAttribute() { return null; }
+        hasAttribute() { return false; }
+        classList = { add: () => {}, remove: () => {}, contains: () => false, toggle: () => false };
+        textContent = '';
+        appendChild() { return null; }
+        remove() {}
+        closest() { return null; }
+        querySelector() { return null; }
+        querySelectorAll() { return []; }
+        getBoundingClientRect() { 
+          return { top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 };
+        }
+        dispatchEvent() { return true; }
+      };
+    }
+    
+    // Element class polyfill
+    if (typeof globalThis.Element === 'undefined') {
+      globalThis.Element = globalThis.HTMLElement;
+    }
+    
     if (typeof globalThis.document === 'undefined') {
-      const createMockElement = () => ({
-        setAttribute: () => {},
-        getAttribute: () => null,
-        classList: { add: () => {}, remove: () => {}, contains: () => false },
-        textContent: '',
-        appendChild: () => {},
-        remove: () => {},
-        closest: () => null,
-        querySelector: () => null,
-        querySelectorAll: () => [],
-      });
+      const createMockElement = () => {
+        const el = Object.create(globalThis.HTMLElement.prototype);
+        Object.assign(el, {
+          setAttribute: () => {},
+          getAttribute: () => null,
+          hasAttribute: () => false,
+          classList: { add: () => {}, remove: () => {}, contains: () => false, toggle: () => false },
+          textContent: '',
+          appendChild: () => null,
+          remove: () => {},
+          closest: () => null,
+          querySelector: () => null,
+          querySelectorAll: () => [],
+          getBoundingClientRect: () => ({ top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 }),
+          dispatchEvent: () => true,
+        });
+        return el;
+      };
       globalThis.document = {
         querySelector: () => null,
         querySelectorAll: () => [],
@@ -218,28 +285,7 @@ export async function build(opts: BuildOptions) {
     entries = await fg("**/*.tsx", {
       cwd: srcDir,
       absolute: true,
-      ignore: [
-        "**/structures/**",
-        "**/layout-hydrations/**",
-        "**/hydration-components.ts",
-        "**/App.tsx",
-        "**/index.tsx",
-        "**/index.ts",
-        "**/dev/**",
-        "**/preliquify/**",
-        "**/build.ts",
-        "**/build-js.ts",
-        "**/render.tsx",
-        "**/contexts/**",
-        "**/hooks/**",
-        "**/features/**",
-        "**/components/zoom/**",
-        "**/components/GalleryComponent.tsx",
-        "**/components/MediaItem.tsx",
-        "**/components/PureSlider.tsx",
-        "**/utils/**",
-        "**/types/**"
-      ]
+      ignore: [],
     });
   } catch (error: any) {
     throw new FileSystemError(
@@ -346,18 +392,53 @@ export async function build(opts: BuildOptions) {
             const mod = await import(modUrl);
             const liquid = await renderComponentToLiquid(mod, file);
 
-            const outPath = join(
-              outLiquidDir,
-              basename(file).replace(/\.tsx$/, ".liquid")
-            );
-            await fs.writeFile(outPath, liquid, "utf8");
+            // Skip writing empty liquid files - only write if there's actual content
+            const trimmedLiquid = liquid.trim();
+            if (trimmedLiquid) {
+              const outPath = join(
+                outLiquidDir,
+                basename(file).replace(/\.tsx$/, ".liquid")
+              );
+              await fs.writeFile(outPath, liquid, "utf8");
+            }
+            // If liquid is empty/whitespace, silently skip - don't create the file
           } catch (error: any) {
-            const compilationError = new CompilationError(
-              error.message || String(error),
-              file,
-              error
+            // If component can't be rendered due to missing export, skip silently
+            // This happens for internal sub-components that aren't meant to be snippets
+            // But still report other compilation/runtime errors
+            const errorMessage = error?.message || String(error);
+            const isMissingComponentError = errorMessage.includes(
+              "No component export found"
             );
-            errorReporter.report(compilationError);
+
+            // Common browser API errors that can be ignored during SSR
+            const browserAPIErrors = [
+              "window is not defined",
+              "document is not defined",
+              "localStorage is not defined",
+              "HTMLElement is not defined",
+              "Cannot read property",
+              "Cannot access",
+            ];
+            const isBrowserAPIError = browserAPIErrors.some((msg) =>
+              errorMessage.includes(msg)
+            );
+
+            if (!isMissingComponentError) {
+              if (isBrowserAPIError && verbose) {
+                // Warn instead of error for browser API issues - they're handled by polyfills
+                console.warn(
+                  `⚠️  Browser API warning in ${basename(file)}: ${errorMessage}\n   This may be handled by SSR polyfills.`
+                );
+              } else {
+                const compilationError = new CompilationError(
+                  errorMessage,
+                  file,
+                  error
+                );
+                errorReporter.report(compilationError);
+              }
+            }
           }
         })
       );

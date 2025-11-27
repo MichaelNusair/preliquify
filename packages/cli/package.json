@@ -10,12 +10,19 @@
   "bugs": {
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
-  "version": "0.1.25",
+  "version": "0.1.35",
   "bin": {
     "preliquify": "dist/index.js"
   },
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/types.js",
+  "types": "dist/types.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
