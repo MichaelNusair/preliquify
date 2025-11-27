@@ -1,6 +1,16 @@
 {
   "name": "@preliquify/core",
-  "version": "0.1.0",
+  "private": false,
+  "license": "MIT",
+  "author": "Preliquify",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MichaelNusair/preliquify"
+  },
+  "bugs": {
+    "url": "https://github.com/MichaelNusair/preliquify/issues"
+  },
+  "version": "0.1.9",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,8 +23,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "preact": "^10.22.0"
-  }
+  },
+  "dependencies": {}
 }
-

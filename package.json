@@ -1,6 +1,16 @@
 {
   "name": "preliquify",
-  "version": "0.1.0",
+  "private": false,
+  "license": "MIT",
+  "author": "Preliquify",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MichaelNusair/preliquify"
+  },
+  "bugs": {
+    "url": "https://github.com/MichaelNusair/preliquify/issues"
+  },
+  "version": "0.1.9",
   "workspaces": [
     "packages/*",
     "examples/*"
@@ -11,7 +21,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "lint:fix": "eslint --fix .",
-    "publish": "pnpm -r --filter '@preliquify/*' run publish"
+    "publish": "node scripts/publish.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",

@@ -1,8 +1,7 @@
-export * from './expr';
-export * from './runtime';
-export * from './liquid';
-export * from './primitives/Conditional';
-export * from './primitives/For';
-export * from './primitives/Choose';
-export * from './primitives/Hydrate';
-
+export * from "./expr.js";
+export * from "./runtime.js";
+export * from "./liquid.js";
+export * from "./primitives/Conditional.js";
+export * from "./primitives/For.js";
+export * from "./primitives/Choose.js";
+export * from "./primitives/Hydrate.js";

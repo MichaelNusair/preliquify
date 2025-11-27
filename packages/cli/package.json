@@ -1,12 +1,29 @@
 {
   "name": "@preliquify/cli",
-  "version": "0.1.0",
-  "bin": { "preliquify": "dist/index.js" },
+  "private": false,
+  "license": "MIT",
+  "author": "Preliquify",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MichaelNusair/preliquify"
+  },
+  "bugs": {
+    "url": "https://github.com/MichaelNusair/preliquify/issues"
+  },
+  "version": "0.1.9",
+  "bin": {
+    "preliquify": "dist/index.js"
+  },
   "type": "module",
   "main": "dist/index.js",
-  "scripts": { "build": "tsc -p tsconfig.json" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@preliquify/compiler": "workspace:*"
-  }
+  },
+  "peerDependencies": {}
 }
-

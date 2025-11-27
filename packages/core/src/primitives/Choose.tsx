@@ -1,15 +1,15 @@
-import { h, Fragment } from 'preact';
-import { useTarget } from '../runtime';
-import type { Expr } from '../expr';
+import { h, Fragment } from "preact";
+import { useTarget } from "../runtime.js";
+import type { Expr } from "../expr.js";
 
 export function When(props: { is: Expr<boolean>; children: h.JSX.Element }) {
   const target = useTarget();
-  if (target === 'liquid') {
+  if (target === "liquid") {
     return (
       <Fragment>
-        {'{% if ' + props.is.toLiquid() + ' %}'}
+        {"{% if " + props.is.toLiquid() + " %}"}
         {props.children}
-        {'{% endif %}'}
+        {"{% endif %}"}
       </Fragment>
     );
   }
@@ -18,7 +18,12 @@ export function When(props: { is: Expr<boolean>; children: h.JSX.Element }) {
 
 export function Otherwise(props: { children: h.JSX.Element }) {
   const target = useTarget();
-  if (target === 'liquid') return <Fragment>{'{% else %}'}{props.children}</Fragment>;
+  if (target === "liquid")
+    return (
+      <Fragment>
+        {"{% else %}"}
+        {props.children}
+      </Fragment>
+    );
   return props.children;
 }
-

@@ -1,2 +1,2 @@
-export { build } from "./build";
-export type { BuildOptions } from "./types";
+export { build } from "./build.js";
+export type { BuildOptions } from "./types.js";
