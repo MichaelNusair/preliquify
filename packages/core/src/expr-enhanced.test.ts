@@ -189,16 +189,16 @@ describe("Enhanced Expression System ($$)", () => {
       const expr = $$.date($$.var("created_at"), $$.lit("%Y-%m-%d"));
       expect(expr.toLiquid()).toBe('created_at | date: "%Y-%m-%d"');
 
-      const date = new Date("2024-03-15T10:30:00");
-      expect(expr.toClient()({ created_at: date })).toBe("2024-03-15");
+      const date = new Date("2026-03-15T10:30:00");
+      expect(expr.toClient()({ created_at: date })).toBe("2026-03-15");
     });
 
     it("should handle date format patterns", () => {
       const expr = $$.date($$.var("date"), $$.lit("%B %d, %Y"));
-      const date = new Date("2024-03-15");
+      const date = new Date("2026-03-15");
       expect(expr.toClient()({ date })).toContain("March");
       expect(expr.toClient()({ date })).toContain("15");
-      expect(expr.toClient()({ date })).toContain("2024");
+      expect(expr.toClient()({ date })).toContain("2026");
     });
   });
 

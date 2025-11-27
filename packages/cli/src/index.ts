@@ -6,6 +6,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { build as esbuild } from "esbuild";
+import { setup } from "./setup.js";
 
 const args = process.argv.slice(2);
 const cmd = args[0] || "build";
@@ -14,6 +15,8 @@ const flags: {
   verbose: boolean;
   watch: boolean;
   help: boolean;
+  force: boolean;
+  noExamples: boolean;
   config?: string;
   srcDir?: string;
   outLiquidDir?: string;
@@ -23,6 +26,8 @@ const flags: {
   verbose: false,
   watch: false,
   help: false,
+  force: false,
+  noExamples: false,
 };
 
 for (let i = 0; i < args.length; i++) {
@@ -34,6 +39,10 @@ for (let i = 0; i < args.length; i++) {
     flags.verbose = true;
   } else if (arg === "--watch" || arg === "-w") {
     flags.watch = true;
+  } else if (arg === "--force" || arg === "-f") {
+    flags.force = true;
+  } else if (arg === "--no-examples") {
+    flags.noExamples = true;
   } else if (arg === "--config" || arg === "-c") {
     flags.config = args[++i];
   } else if (arg === "--src-dir") {
@@ -49,12 +58,14 @@ for (let i = 0; i < args.length; i++) {
 
 function showHelp() {
   console.log(`
-Usage: preliquify build [options]
+Usage: preliquify <command> [options]
 
 Commands:
-  build              Build your PreLiquify components (default)
+  build              Build your Preliquify components (default)
+  init               Initialize a Shopify theme for Preliquify
+  help               Show this help message
 
-Options:
+Build Options:
   -h, --help                 Show this help message
   -w, --watch                Watch for changes and rebuild
   -v, --verbose              Show detailed error information
@@ -64,36 +75,54 @@ Options:
   --out-client-dir <path>    Output directory for client assets (default: assets)
   --jsx-import-source <pkg>  JSX import source (default: preact)
 
+Init Options:
+  -f, --force                Overwrite existing files
+  --no-examples              Skip creating example component
+  -v, --verbose              Show detailed output
+
 Examples:
-  preliquify build
-  preliquify build --watch
-  preliquify build --src-dir ./components --out-liquid-dir ./templates
-  preliquify build --config ./my-config.ts
+  preliquify init                           # Set up a new project
+  preliquify build                          # Build components
+  preliquify build --watch                  # Build with watch mode
+  preliquify build --src-dir ./components   # Custom source directory
+  preliquify build --config ./my-config.ts  # Custom config file
 
 Configuration:
-  You can configure PreLiquify in two ways:
+  Create a config file (preliquify.config.ts/js/mjs):
   
-  1. Create a config file (preliquify.config.ts/js/mjs):
-     export default {
-       srcDir: "src/snippets",
-       outLiquidDir: "snippets",
-       outClientDir: "assets",
-       jsxImportSource: "preact",
-     };
+    export default {
+      entryPoint: "src/snippets",
+      outLiquidDir: "snippets",
+      outClientDir: "assets",
+      tailwind: true,
+      fragmentsDir: "src/schema-fragments", // Optional
+    };
   
-  2. Use command-line flags (takes precedence over config file):
-     preliquify build --src-dir ./src --out-liquid-dir ./output
-  
-  Command-line flags override values from the config file.
+  Or use command-line flags (takes precedence over config file).
+
+Documentation: https://github.com/MichaelNusair/preliquify
 `);
 }
 
-if (flags.help || (cmd !== "build" && cmd !== "")) {
-  if (cmd !== "build" && cmd !== "" && !flags.help) {
-    console.error(`\n❌ Unknown command: ${cmd}`);
-  }
+// Handle init command
+if (cmd === "init") {
+  setup({
+    force: flags.force,
+    verbose: flags.verbose,
+    skipExamples: flags.noExamples,
+  }).catch((error) => {
+    console.error("\n❌ Init failed:", error.message);
+    process.exit(1);
+  });
+} else if (flags.help || cmd === "help") {
   showHelp();
-  process.exit(flags.help ? 0 : 1);
+  process.exit(0);
+} else if (cmd !== "build" && cmd !== "") {
+  console.error(`\n❌ Unknown command: ${cmd}`);
+  showHelp();
+  process.exit(1);
+} else {
+  // Continue with build command below
 }
 
 async function loadConfig(customConfigPath?: string): Promise<any> {
@@ -101,10 +130,10 @@ async function loadConfig(customConfigPath?: string): Promise<any> {
   const possibleConfigs = customConfigPath
     ? [resolve(cwd, customConfigPath)]
     : [
-      resolve(cwd, "preliquify.config.ts"),
-      resolve(cwd, "preliquify.config.js"),
-      resolve(cwd, "preliquify.config.mjs"),
-    ];
+        resolve(cwd, "preliquify.config.ts"),
+        resolve(cwd, "preliquify.config.js"),
+        resolve(cwd, "preliquify.config.mjs"),
+      ];
 
   const tmpDir = await mkdtemp(join(tmpdir(), "preliquify-config-"));
 
@@ -150,49 +179,60 @@ async function loadConfig(customConfigPath?: string): Promise<any> {
   } finally {
     try {
       await fs.rm(tmpDir, { recursive: true, force: true });
-    } catch { }
+    } catch {}
   }
 }
 
-const cfg = (await loadConfig(flags.config)) ?? {};
+// Only run build logic if we're doing a build command
+if (cmd === "build" || cmd === "") {
+  const cfg = (await loadConfig(flags.config)) ?? {};
 
-const buildOptions = {
-  entryPoint:
-    cfg.entryPoint || flags.srcDir || cfg.srcDir || resolve("src/snippets"),
-  srcDir: flags.srcDir || cfg.srcDir, // Backwards compatibility
-  outLiquidDir: flags.outLiquidDir ?? cfg.outLiquidDir ?? resolve("snippets"),
-  outClientDir: flags.outClientDir ?? cfg.outClientDir ?? resolve("assets"),
-  jsxImportSource: flags.jsxImportSource ?? cfg.jsxImportSource ?? "preact",
-  watch: flags.watch || !!cfg.watch,
-  verbose: flags.verbose || !!cfg.verbose,
-  suffixDistFiles:
-    cfg.suffixDistFiles !== undefined ? cfg.suffixDistFiles : true,
-  generateClientBundles: cfg.generateClientBundles !== false, // Default true
-  minify: cfg.minify !== false, // Default true
-  tailwind: cfg.tailwind,
-};
+  const buildOptions = {
+    entryPoint:
+      cfg.entryPoint || flags.srcDir || cfg.srcDir || resolve("src/snippets"),
+    srcDir: flags.srcDir || cfg.srcDir, // Backwards compatibility
+    outLiquidDir: flags.outLiquidDir ?? cfg.outLiquidDir ?? resolve("snippets"),
+    outClientDir: flags.outClientDir ?? cfg.outClientDir ?? resolve("assets"),
+    jsxImportSource: flags.jsxImportSource ?? cfg.jsxImportSource ?? "preact",
+    watch: flags.watch || !!cfg.watch,
+    verbose: flags.verbose || !!cfg.verbose,
+    suffixDistFiles:
+      cfg.suffixDistFiles !== undefined ? cfg.suffixDistFiles : true,
+    generateClientBundles: cfg.generateClientBundles !== false, // Default true
+    minify: cfg.minify !== false, // Default true
+    tailwind: cfg.tailwind,
+    // New: Schema fragments directory
+    fragmentsDir: cfg.fragmentsDir,
+    // New: Theme style extraction
+    extractThemeStyles: cfg.extractThemeStyles,
+  };
 
-console.log("\n🚀 Starting PreLiquify build...\n");
-if (flags.verbose) {
-  console.log("Configuration:");
-  const entryPointDisplay = Array.isArray(buildOptions.entryPoint)
-    ? buildOptions.entryPoint.join(", ")
-    : buildOptions.entryPoint;
-  console.log(`  Entry point: ${entryPointDisplay}`);
-  console.log(`  Liquid output: ${buildOptions.outLiquidDir}`);
-  console.log(`  Client output: ${buildOptions.outClientDir}`);
-  console.log(`  JSX import source: ${buildOptions.jsxImportSource}`);
-  console.log(`  Watch mode: ${buildOptions.watch ? "enabled" : "disabled"}`);
-  console.log(
-    `  Suffix dist files: ${buildOptions.suffixDistFiles ? "enabled" : "disabled"}\n`
-  );
-}
-
-try {
-  await build(buildOptions);
-} catch (error: any) {
-  if (flags.verbose && error.stack) {
-    console.error("\nFull stack trace:", error.stack);
+  console.log("\n🚀 Starting Preliquify build...\n");
+  if (flags.verbose) {
+    console.log("Configuration:");
+    const entryPointDisplay = Array.isArray(buildOptions.entryPoint)
+      ? buildOptions.entryPoint.join(", ")
+      : buildOptions.entryPoint;
+    console.log(`  Entry point: ${entryPointDisplay}`);
+    console.log(`  Liquid output: ${buildOptions.outLiquidDir}`);
+    console.log(`  Client output: ${buildOptions.outClientDir}`);
+    console.log(`  JSX import source: ${buildOptions.jsxImportSource}`);
+    console.log(`  Watch mode: ${buildOptions.watch ? "enabled" : "disabled"}`);
+    console.log(
+      `  Suffix dist files: ${buildOptions.suffixDistFiles ? "enabled" : "disabled"}`
+    );
+    if (buildOptions.fragmentsDir) {
+      console.log(`  Fragments directory: ${buildOptions.fragmentsDir}`);
+    }
+    console.log("");
   }
-  process.exit(1);
+
+  try {
+    await build(buildOptions);
+  } catch (error: any) {
+    if (flags.verbose && error.stack) {
+      console.error("\nFull stack trace:", error.stack);
+    }
+    process.exit(1);
+  }
 }

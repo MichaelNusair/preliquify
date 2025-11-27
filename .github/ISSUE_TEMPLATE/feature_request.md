@@ -1,39 +1,30 @@
 ---
-name: Feature Request
+name: Feature request
 about: Suggest an idea for this project
-title: "[FEATURE] "
+title: '[Feature] '
 labels: enhancement
-assignees: ""
+assignees: ''
 ---
 
-## Feature Description
-
-<!-- A clear and concise description of the feature you'd like to see -->
-
-## Use Case
-
-<!-- Describe the use case or problem this feature would solve -->
+## Problem Statement
+A clear and concise description of what the problem is.
+Ex. I'm always frustrated when [...]
 
 ## Proposed Solution
-
-<!-- Describe how you envision this feature working -->
+A clear and concise description of what you want to happen.
 
 ## Example Usage
-
-<!-- If applicable, show how you'd like to use this feature -->
-
 ```tsx
-// Example code
+// How would this feature be used?
 ```
 
 ## Alternatives Considered
-
-<!-- Describe any alternative solutions or features you've considered -->
+A description of any alternative solutions or features you've considered.
 
 ## Additional Context
+Add any other context or screenshots about the feature request here.
 
-<!-- Add any other context, screenshots, or examples about the feature request -->
-
-## Implementation Ideas
-
-<!-- Optional: If you have ideas about how this could be implemented -->
+## Would you be willing to contribute this feature?
+- [ ] Yes, I'd like to submit a PR
+- [ ] I could help with testing
+- [ ] No, I'm just suggesting

@@ -178,4 +178,121 @@ describe("Expression System ($)", () => {
       ).toBe(false);
     });
   });
+
+  describe("$.map", () => {
+    it("should map array with simple property extraction", () => {
+      const products = $.var("products");
+      const titles = $.map(products, (item) => item.var("title"));
+
+      // Should use Liquid's map filter for simple property access
+      expect(titles.toLiquid()).toContain("map: 'title'");
+
+      // Should work at runtime
+      const context = {
+        products: [
+          { title: "Product 1", price: 10 },
+          { title: "Product 2", price: 20 },
+        ],
+      };
+      const result = titles.toClient()(context);
+      expect(result).toEqual(["Product 1", "Product 2"]);
+    });
+
+    it("should map array with object transformation at runtime", () => {
+      const media = $.var("media");
+      const processed = $.map(media, (item) => ({
+        src: item.var("src"),
+        alt: item.var("alt"),
+      }));
+
+      const context = {
+        media: [
+          { src: "image1.jpg", alt: "Image 1", type: "image" },
+          { src: "image2.jpg", alt: "Image 2", type: "image" },
+        ],
+      };
+      const result = processed.toClient()(context);
+      expect(result).toEqual([
+        { src: "image1.jpg", alt: "Image 1" },
+        { src: "image2.jpg", alt: "Image 2" },
+      ]);
+    });
+
+    it("should generate Liquid code for object transformations", () => {
+      const media = $.var("media");
+      const processed = $.map(media, (item) => ({
+        src: item.var("src"),
+        alt: item.var("alt"),
+      }));
+
+      const liquid = processed.toLiquid();
+      expect(liquid).toContain("for _map_item in media");
+      expect(liquid).toContain("_map_result");
+    });
+  });
+
+  describe("$.filter", () => {
+    it("should filter array with simple equality (uses where filter)", () => {
+      const media = $.var("media");
+      const videos = $.filter(media, (item) =>
+        $.eq(item.var("type"), $.lit("video"))
+      );
+
+      // Should use Liquid's where filter for simple equality
+      const liquid = videos.toLiquid();
+      expect(liquid).toContain("where:");
+
+      // Should work at runtime
+      const context = {
+        media: [
+          { type: "video", src: "video1.mp4" },
+          { type: "image", src: "image1.jpg" },
+          { type: "video", src: "video2.mp4" },
+        ],
+      };
+      const result = videos.toClient()(context);
+      expect(result).toEqual([
+        { type: "video", src: "video1.mp4" },
+        { type: "video", src: "video2.mp4" },
+      ]);
+    });
+
+    it("should filter array with complex predicate (generates loop)", () => {
+      const products = $.var("products");
+      // Use $.not with $.eq for a complex predicate (since $.gt is in $enhanced)
+      const notCheap = $.filter(products, (item) =>
+        $.not($.eq(item.var("price"), $.lit(50)))
+      );
+
+      // Should generate loop with conditional for complex predicates
+      const liquid = notCheap.toLiquid();
+      expect(liquid).toContain("for _filter_item in products");
+      expect(liquid).toContain("if");
+
+      // Should work at runtime
+      const context = {
+        products: [
+          { price: 50, name: "Cheap" },
+          { price: 150, name: "Expensive" },
+          { price: 200, name: "Very Expensive" },
+        ],
+      };
+      const result = notCheap.toClient()(context);
+      expect(result).toEqual([
+        { price: 150, name: "Expensive" },
+        { price: 200, name: "Very Expensive" },
+      ]);
+    });
+
+    it("should handle empty arrays", () => {
+      const products = $.var("products");
+      const filtered = $.filter(products, (item) =>
+        $.eq(item.var("type"), $.lit("sale"))
+      );
+
+      const context = { products: [] };
+      const result = filtered.toClient()(context);
+      expect(result).toEqual([]);
+    });
+  });
 });

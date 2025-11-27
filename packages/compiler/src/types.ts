@@ -43,16 +43,40 @@ export type BuildOptions = {
    * Enable Tailwind CSS processing
    * @default false
    */
-  tailwind?: boolean | {
-    /**
-     * Path to Tailwind config file
-     * @default "tailwind.config.js" or "tailwind.config.ts"
-     */
-    config?: string;
-    /**
-     * Path to PostCSS config file
-     * @default "postcss.config.js" or "postcss.config.ts"
-     */
-    postcssConfig?: string;
-  };
+  tailwind?:
+    | boolean
+    | {
+        /**
+         * Path to Tailwind config file
+         * @default "tailwind.config.js" or "tailwind.config.ts"
+         */
+        config?: string;
+        /**
+         * Path to PostCSS config file
+         * @default "postcss.config.js" or "postcss.config.ts"
+         */
+        postcssConfig?: string;
+      };
+
+  /**
+   * Directory containing custom schema fragments
+   * Fragments can be used in Liquid templates with FRAGMENT.name syntax
+   * @example "./src/schema-fragments"
+   */
+  fragmentsDir?: string;
+
+  /**
+   * Enable theme style extraction
+   * Analyzes existing Shopify theme CSS and extracts CSS variables, keyframes, etc.
+   */
+  extractThemeStyles?:
+    | boolean
+    | {
+        /** Output path for extracted theme styles */
+        outputPath?: string;
+        /** Scope extracted styles to prevent conflicts */
+        scopeStyles?: boolean;
+        /** Selector to scope styles to */
+        scopeSelector?: string;
+      };
 };

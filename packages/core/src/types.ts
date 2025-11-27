@@ -1,11 +1,11 @@
-import type { ComponentType, JSX, VNode } from "preact";
+import type { ComponentType, JSX } from "preact";
 
 /**
  * Expression type that can be evaluated in both Liquid and client contexts
  *
  * Expressions provide a dual-compilation model:
  * - At build time: Generate Liquid template syntax via `toLiquid()`
- * - At runtime: Evaluate in the browser via `toClient()`
+ * - At runtime: Evaluate in the browser via `toClient()` or access `.value` directly
  *
  * @template T - The type of value this expression evaluates to
  *
@@ -14,6 +14,7 @@ import type { ComponentType, JSX, VNode } from "preact";
  * const expr: Expr<string> = $.var("product.title");
  * expr.toLiquid() // => "product.title" (used at build time)
  * expr.toClient()({ product: { title: "Shoes" } }) // => "Shoes" (used at runtime)
+ * expr.value // => Runtime value (convenience getter)
  * ```
  */
 export interface Expr<T> {
@@ -21,6 +22,8 @@ export interface Expr<T> {
   toLiquid(): string;
   /** Convert expression to client-side JavaScript function */
   toClient(): (ctx: Record<string, unknown>) => T;
+  /** Runtime value getter - evaluates the expression with empty context */
+  readonly value: T;
 }
 
 /**
@@ -128,6 +131,36 @@ export type LiquidProps<P> = {
 };
 
 /**
+ * Helper type to allow a single prop to be either its value or an Expr
+ *
+ * Use this for individual props that can be passed from parent components
+ * using $.from() to track Liquid paths.
+ *
+ * @template T - The type of the prop value
+ *
+ * @example
+ * ```tsx
+ * interface MediaGalleryProps {
+ *   media: ProductMetafield['gallery'];
+ *   designSettings: PropWithExpr<DesignSettings>;  // Can be DesignSettings or Expr<DesignSettings>
+ *   productId: string;
+ * }
+ *
+ * // In parent:
+ * <MediaGallery
+ *   designSettings={$.from("storeMetafield.designSettings", props.storeMetafield.designSettings)}
+ * />
+ *
+ * // In child:
+ * const MediaGallery = ({ designSettings }: MediaGalleryProps) => {
+ *   const settings = $.asExpr(designSettings);  // Convert to Expr if needed
+ *   const layoutType = $.prop(settings, "desktopLayoutType");
+ * };
+ * ```
+ */
+export type PropWithExpr<T> = T | Expr<T>;
+
+/**
  * Enhanced expression builder type definitions
  *
  * Extended API for building more complex Liquid expressions with type safety
@@ -163,6 +196,22 @@ export interface ExpressionBuilder {
   ): Expr<number>;
   first<T>(array: Expr<T[]>): Expr<T | undefined>;
   last<T>(array: Expr<T[]>): Expr<T | undefined>;
+
+  // Array transformations
+  map<T, R>(
+    arrayExpr: Expr<T[]>,
+    transform: (item: {
+      var: (path: string) => Expr<unknown>;
+      prop: <K extends keyof T>(prop: K) => Expr<T[K]>;
+    }) => R | Expr<R>
+  ): Expr<R[]>;
+  filter<T>(
+    arrayExpr: Expr<T[]>,
+    predicate: (item: {
+      var: (path: string) => Expr<unknown>;
+      prop: <K extends keyof T>(prop: K) => Expr<T[K]>;
+    }) => Expr<boolean>
+  ): Expr<T[]>;
 
   // Null checks
   isNil(value: Expr<unknown>): Expr<boolean>;
@@ -210,10 +259,19 @@ export interface EnhancedExpressionBuilder extends ExpressionBuilder {
   reverse<T>(array: Expr<T[]>): Expr<T[]>;
   uniq<T>(array: Expr<T[]>): Expr<T[]>;
   compact<T>(array: Expr<(T | null | undefined)[]>): Expr<T[]>;
+  // Overload for Liquid's map filter (property extraction)
   map<T, K extends keyof T>(
     array: Expr<T[]>,
     property: Expr<string>
   ): Expr<T[K][]>;
+  // Overload for transformation (inherited from ExpressionBuilder)
+  map<T, R>(
+    arrayExpr: Expr<T[]>,
+    transform: (item: {
+      var: (path: string) => Expr<unknown>;
+      prop: <K extends keyof T>(prop: K) => Expr<T[K]>;
+    }) => R | Expr<R>
+  ): Expr<R[]>;
   where<T>(
     array: Expr<T[]>,
     property: Expr<string>,

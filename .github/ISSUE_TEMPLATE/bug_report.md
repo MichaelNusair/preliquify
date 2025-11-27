@@ -1,57 +1,41 @@
 ---
-name: Bug Report
+name: Bug report
 about: Create a report to help us improve
-title: "[BUG] "
+title: '[Bug] '
 labels: bug
-assignees: ""
+assignees: ''
 ---
 
-## Description
+## Bug Description
+A clear and concise description of what the bug is.
 
-<!-- A clear and concise description of the bug -->
-
-## Steps to Reproduce
-
-1.
-2.
-3.
+## To Reproduce
+Steps to reproduce the behavior:
+1. Create a component with '...'
+2. Run `preliquify build`
+3. See error
 
 ## Expected Behavior
-
-<!-- What you expected to happen -->
+A clear and concise description of what you expected to happen.
 
 ## Actual Behavior
-
-<!-- What actually happened -->
+What actually happened instead.
 
 ## Code Example
-
-<!-- If applicable, provide a minimal code example that reproduces the issue -->
-
 ```tsx
-// Your code here
+// Your component code
 ```
 
-## Error Message
-
-<!-- If applicable, paste the full error message -->
-
-```
-Error message here
+## Generated Liquid (if applicable)
+```liquid
+{% comment %} The generated Liquid output {% endcomment %}
 ```
 
 ## Environment
-
-- **Preliquify Version**:
-- **Node.js Version**:
-- **pnpm Version**:
-- **Operating System**:
-- **Package Manager**:
+- Preliquify version: [e.g. 2.0.0]
+- Node.js version: [e.g. 22.0.0]
+- Package manager: [e.g. pnpm 10.0.0]
+- OS: [e.g. macOS 14.0]
 
 ## Additional Context
-
-<!-- Add any other context about the problem here -->
-
-## Possible Solution
-
-<!-- Optional: Suggest a fix or reason for the bug -->
+Add any other context about the problem here.

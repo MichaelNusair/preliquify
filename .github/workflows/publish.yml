@@ -1,69 +1,65 @@
-name: Publish Packages
+name: Publish
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       version:
-        description: "Version bump type"
-        required: false
+        description: "Version bump type (patch, minor, major)"
+        required: true
+        default: "patch"
         type: choice
         options:
           - patch
           - minor
           - major
-        default: patch
 
 jobs:
   publish:
-    name: Build and Publish
+    name: Publish to npm
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
       id-token: write
-
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
         with:
           version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version: "22"
           cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
-      - name: Build packages
+      - name: Build all packages
         run: pnpm build
 
-      # - name: Run tests
-      #   run: pnpm test
+      - name: Run tests
+        run: pnpm test
 
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Publish packages
-        run: pnpm publish-all-packages
+      - name: Bump version and publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # Bump version in all packages
+          node scripts/publish.mjs
 
       - name: Push changes
         run: |
-          git add .
-          git commit -m "chore: bump version to $(node -p "require('./package.json').version")" || echo "No changes to commit"
-          git push origin main
+          git push --follow-tags

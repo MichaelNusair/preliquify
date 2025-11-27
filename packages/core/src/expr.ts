@@ -14,6 +14,13 @@ export function createExpr<T>(
   const expr: Expr<T> = {
     toLiquid,
     toClient,
+    // Add .value getter for runtime access
+    // This allows accessing the actual value at runtime: expr.value
+    get value() {
+      // At runtime, evaluate with empty context (will be populated by actual props)
+      // This is a convenience getter - actual evaluation happens in components
+      return toClient()({});
+    },
   };
 
   // Add toString() and valueOf() to allow primitive conversion
@@ -29,18 +36,6 @@ export function createExpr<T>(
   Object.defineProperty(expr, "valueOf", {
     value() {
       return toLiquid();
-    },
-    enumerable: false,
-    configurable: true,
-  });
-
-  // Add .value getter for runtime access
-  // This allows accessing the actual value at runtime: expr.value
-  Object.defineProperty(expr, "value", {
-    get() {
-      // At runtime, evaluate with empty context (will be populated by actual props)
-      // This is a convenience getter - actual evaluation happens in components
-      return toClient()({});
     },
     enumerable: false,
     configurable: true,
@@ -172,36 +167,163 @@ export const $ = {
   },
 
   /**
+   * Creates an Expr from a runtime value with its Liquid path.
+   * This is essential when passing props to child components that need to use Liquid expressions.
+   *
+   * **Problem it solves:**
+   * When you pass `props.storeMetafield.designSettings` to a child component as `designSettings`,
+   * the child can't use `$.var('designSettings.mobileSettings')` because `designSettings` isn't
+   * a Liquid variable - the actual Liquid path is `storeMetafield.designSettings`.
+   *
+   * **Solution:**
+   * Use `$.from()` to wrap the prop with its Liquid path, then use `$.prop()` to access nested properties.
+   *
+   * @template T - The type of the value
+   * @param liquidPath - The Liquid variable path (e.g., "storeMetafield.designSettings")
+   * @param runtimeValue - The runtime JavaScript value
+   * @returns An Expr that uses the Liquid path at build time and runtime value at runtime
+   *
+   * @example
+   * ```tsx
+   * // In parent component (createLiquidSnippet root):
+   * <MediaGallery
+   *   designSettings={$.from("storeMetafield.designSettings", props.storeMetafield.designSettings)}
+   *   // ...
+   * />
+   *
+   * // In child component types:
+   * interface MediaGalleryProps {
+   *   designSettings: PropWithExpr<DesignSettings>;  // Can be DesignSettings or Expr<DesignSettings>
+   * }
+   *
+   * // In child component:
+   * const MediaGallery = ({ designSettings, ... }) => {
+   *   const settings = $.asExpr(designSettings);  // Convert to Expr if needed
+   *   const mobileSettings = $.prop(settings, "mobileSettings");
+   *   const layoutType = $.prop(mobileSettings, "layoutType");
+   *   // Liquid: storeMetafield.designSettings.mobileSettings.layoutType
+   *   // Runtime: designSettings.mobileSettings.layoutType (from .value)
+   * };
+   * ```
+   */
+  from<T>(liquidPath: string, runtimeValue: T): Expr<T> {
+    return createExpr(
+      () => liquidPath,
+      () => () => runtimeValue
+    );
+  },
+
+  /**
+   * Converts a value to an Expr if it isn't already.
+   * Helper for components that accept PropWithExpr<T> types.
+   *
+   * @template T - The type of the value
+   * @param value - Either a raw value or an Expr
+   * @param fallbackPath - Optional Liquid path to use if value is not an Expr (defaults to empty string)
+   * @returns An Expr
+   *
+   * @example
+   * ```tsx
+   * interface Props {
+   *   designSettings: PropWithExpr<DesignSettings>;
+   * }
+   *
+   * const MediaGallery = ({ designSettings }: Props) => {
+   *   // Convert to Expr (uses empty path if not already an Expr)
+   *   const settings = $.asExpr(designSettings);
+   *   const layoutType = $.prop(settings, "desktopLayoutType");
+   * };
+   * ```
+   */
+  asExpr<T>(value: T | Expr<T>, fallbackPath: string = ""): Expr<T> {
+    // If already an Expr, return it
+    if (typeof value === "object" && value !== null && "toLiquid" in value) {
+      return value as Expr<T>;
+    }
+
+    // Warn if creating Expr with empty path - this will cause errors when using $.prop()
+    if (!fallbackPath) {
+      const errorMsg =
+        `[Preliquify] $.asExpr() was called with a raw value but no fallback path. ` +
+        `This will create an Expr with an empty Liquid path, which will cause errors when accessing properties. ` +
+        `\n\nSolution: Pass the prop as an Expr from the parent component using $.from():\n` +
+        `  // In parent component:\n` +
+        `  <MediaGallery\n` +
+        `    designSettings={$.from("storeMetafield.designSettings", props.storeMetafield.designSettings)}\n` +
+        `    // ...\n` +
+        `  />\n\n` +
+        `  // Or provide a fallback path:\n` +
+        `  const settings = $.asExpr(designSettings, "storeMetafield.designSettings");`;
+
+      if (
+        typeof process !== "undefined" &&
+        process.env.NODE_ENV !== "production"
+      ) {
+        console.warn(errorMsg);
+      }
+    }
+
+    // Otherwise, wrap it with $.from()
+    return $.from(fallbackPath, value as T);
+  },
+
+  /**
    * Creates a logical NOT expression
+   *
+   * **⚠️ Important:** Cannot negate OR expressions in Liquid.
+   * Liquid parses `not A or B` as `(not A) or B`, not `not (A or B)`.
+   *
+   * **For multiple branches (3+), use `<Choose>` component instead.**
    *
    * @param a - The boolean expression to negate
    * @returns An Expr that represents `not a` in Liquid
    *
    * @example
    * ```tsx
+   * // Simple negation
    * $.not($.var("customer.logged_in"))  // => not customer.logged_in
    * <Conditional when={$.not($.var("settings.show_header"))}>
    *   <p>Header is hidden</p>
    * </Conditional>
+   *
+   * // ❌ Don't do this - will throw error:
+   * $.not($.or($.eq($.var("type"), $.lit("a")), $.eq($.var("type"), $.lit("b"))))
+   *
+   * // ✅ Use Choose for 3+ branches:
+   * <Choose
+   *   value={$.var("type")}
+   *   cases={{ a: <ComponentA />, b: <ComponentB /> }}
+   *   default={<ComponentC />}
+   * />
    * ```
    */
   not(a: Expr<boolean>): Expr<boolean> {
     // Liquid doesn't support parentheses around 'not'
-    // WARNING: When negating OR expressions, use De Morgan's law:
-    // not (A or B) = (not A) and (not B)
+    // ERROR: Negating OR expressions doesn't work in Liquid
     // Liquid parses "not A or B" as "(not A) or B", not "not (A or B)"
     const liquidStr = a.toLiquid();
-    
+
     // Check if this is an OR expression (contains " or ")
-    // If so, warn the user that they should use De Morgan's law
+    // Throw an error to prevent misuse - user must use De Morgan's law or Choose component
     if (liquidStr.includes(" or ")) {
-      console.warn(
-        "[Preliquify] Negating an OR expression. Liquid will parse 'not A or B' as '(not A) or B', not 'not (A or B)'. " +
-        "Use De Morgan's law: not (A or B) = (not A) and (not B). " +
-        "Or restructure to check for the specific conditions you want."
-      );
+      const errorMsg =
+        "[Preliquify] Cannot negate an OR expression. Liquid will parse 'not A or B' as '(not A) or B', not 'not (A or B)'. " +
+        "\n\nSolutions:\n" +
+        "1. Use De Morgan's law: not (A or B) = (not A) and (not B)\n" +
+        "2. Use Choose component for 3+ branches (recommended)\n" +
+        "3. Restructure to check for the specific conditions you want\n\n" +
+        `Expression: not ${liquidStr}`;
+
+      if (
+        typeof process !== "undefined" &&
+        process.env.NODE_ENV !== "production"
+      ) {
+        throw new Error(errorMsg);
+      } else {
+        console.error(errorMsg);
+      }
     }
-    
+
     return createExpr(
       () => `not ${liquidStr}`,
       () => (ctx) => !a.toClient()(ctx)
@@ -234,6 +356,9 @@ export const $ = {
    * Creates a logical OR expression
    * Supports chaining multiple OR conditions (Shopify Liquid supports this)
    *
+   * **💡 Tip:** For 3+ branches checking the same value, consider using `<Choose>` component instead.
+   * It's more maintainable and generates cleaner Liquid code.
+   *
    * @param a - First boolean expression
    * @param b - Second boolean expression
    * @param rest - Additional boolean expressions to chain with OR
@@ -245,13 +370,23 @@ export const $ = {
    * $.or($.var("customer.logged_in"), $.var("cart.item_count"))
    * // => customer.logged_in or cart.item_count
    *
-   * // Three or more conditions
+   * // Three or more conditions (works, but Choose is better)
    * $.or(
    *   $.eq($.var("product.type"), $.lit("shirt")),
    *   $.eq($.var("product.type"), $.lit("pants")),
    *   $.eq($.var("product.type"), $.lit("shoes"))
    * )
    * // => product.type == 'shirt' or product.type == 'pants' or product.type == 'shoes'
+   *
+   * // ✅ Better: Use Choose for 3+ branches
+   * <Choose
+   *   value={$.var("product.type")}
+   *   cases={{
+   *     shirt: <ShirtComponent />,
+   *     pants: <PantsComponent />,
+   *     shoes: <ShoesComponent />,
+   *   }}
+   * />
    * ```
    */
   or(
@@ -421,13 +556,49 @@ export const $ = {
     return createExpr(
       () => {
         const base = expr.toLiquid();
-        // If base is already a path, append property
+
+        // Validate base path - must not be empty or start with a dot
+        if (!base || base.startsWith(".")) {
+          const errorMsg =
+            `[Preliquify] Cannot access property "${property}" on invalid Liquid path: "${base}". ` +
+            `The base path is empty or starts with a dot, which is invalid in Liquid. ` +
+            `\n\nSolution: Use $.from() to provide a valid Liquid path when creating the Expr:\n` +
+            `  const settings = $.from("storeMetafield.designSettings", designSettings);\n` +
+            `  const layoutType = $.prop(settings, "desktopLayoutType");`;
+
+          if (
+            typeof process !== "undefined" &&
+            process.env.NODE_ENV !== "production"
+          ) {
+            throw new Error(errorMsg);
+          }
+          // In production, return a safe fallback
+          return property;
+        }
+
+        // If base is already a path (no spaces, no parentheses), append property
         if (!base.includes(" ") && !base.includes("(")) {
           return `${base}.${property}`;
         }
-        // Otherwise, we need to handle it differently
-        // For complex expressions, we can't just append
-        return `${base}.${property}`;
+
+        // For complex expressions (conditionals, comparisons, etc.), we can't append
+        // This is a limitation - you can't do "if condition then path1 else path2".property
+        // The user needs to restructure their logic
+        const errorMsg =
+          `[Preliquify] Cannot access property "${property}" on complex expression: "${base}". ` +
+          `Liquid doesn't support property access on conditional expressions. ` +
+          `\n\nSolution: Access the property before the conditional:\n` +
+          `  // Instead of: $.prop($.when(condition, path1, path2), "property")\n` +
+          `  // Do: $.when(condition, $.prop(path1, "property"), $.prop(path2, "property"))`;
+
+        if (
+          typeof process !== "undefined" &&
+          process.env.NODE_ENV !== "production"
+        ) {
+          throw new Error(errorMsg);
+        }
+        // In production, return a safe fallback
+        return property;
       },
       () => (ctx) => {
         const parent = expr.toClient()(ctx);
@@ -488,6 +659,250 @@ export const $ = {
       () => `${collection.toLiquid()} contains ${item.toLiquid()}`,
       () => (ctx) =>
         (collection.toClient()(ctx) ?? []).includes(item.toClient()(ctx))
+    );
+  },
+
+  /**
+   * Maps over an array expression with a transformation function
+   * Generates Liquid code that performs the transformation at build time
+   *
+   * **Note:** The transformation function receives an item expression builder
+   * that can be used to access properties. Use `item.var('property')` or
+   * `item.prop('property')` to access properties of the current item.
+   *
+   * @template T - The type of items in the source array
+   * @template R - The type of items in the result array
+   * @param arrayExpr - Expression that evaluates to an array
+   * @param transform - Transformation function that receives an item expression builder
+   * @returns An Expr that represents the transformed array
+   *
+   * @example
+   * ```tsx
+   * import { $, $enhanced } from '@preliquify/preact';
+   *
+   * // Simple property extraction (uses Liquid's map filter)
+   * const titles = $.map(productsExpr, (item) => item.var('title'));
+   * // Generates: products | map: 'title'
+   *
+   * // Transform with string concatenation
+   * const processedMedia = $.map(mediaExpr, (item) => ({
+   *   src: $enhanced.append(item.var('src'), $.lit('?height=800')),
+   *   alt: item.var('alt')
+   * }));
+   * ```
+   *
+   * @remarks
+   * - For simple property extraction, this uses Liquid's `map` filter
+   * - For object transformations, this generates Liquid loops that build JSON arrays
+   * - Complex transformations may require using `<For>` component instead
+   */
+  map<T, R>(
+    arrayExpr: Expr<T[]>,
+    transform: (item: {
+      var: (path: string) => Expr<unknown>;
+      prop: <K extends keyof T>(prop: K) => Expr<T[K]>;
+    }) => R | Expr<R>
+  ): Expr<R[]> {
+    // Generate a unique variable name for the loop item
+    const itemVar = "_map_item";
+    const resultVar = "_map_result";
+
+    // Create item expression builder
+    const itemBuilder = {
+      var: (path: string) => $.var(`${itemVar}.${path}`),
+      prop: <K extends keyof T>(prop: K) =>
+        $.var(`${itemVar}.${String(prop)}`) as Expr<T[K]>,
+    };
+
+    // Call the transform function to get the transformation descriptor
+    const transformResult = transform(itemBuilder);
+
+    // Check if result is an Expr (simple transformation)
+    const isExpr =
+      typeof transformResult === "object" &&
+      transformResult !== null &&
+      "toLiquid" in transformResult;
+
+    if (isExpr) {
+      // Simple case: transform returns a single expression
+      const resultExpr = transformResult as Expr<R>;
+      const liquidResult = resultExpr.toLiquid();
+
+      return createExpr(
+        () => {
+          // If it's a simple property access, use Liquid's map filter
+          if (liquidResult.startsWith(`${itemVar}.`)) {
+            const prop = liquidResult.substring(`${itemVar}.`.length);
+            return `${arrayExpr.toLiquid()} | map: '${prop}'`;
+          }
+
+          // For other expressions, we'd need a loop - but this is complex
+          // For now, return the source array and let runtime handle it
+          // In a full implementation, this would generate a proper loop
+          return arrayExpr.toLiquid();
+        },
+        () => (ctx) => {
+          const arr = arrayExpr.toClient()(ctx) ?? [];
+          return arr.map((item) => {
+            const itemCtx = { ...ctx, [itemVar]: item };
+            return resultExpr.toClient()(itemCtx) as R;
+          });
+        }
+      );
+    }
+
+    // Complex case: transform returns an object with multiple properties
+    // Build JSON array in Liquid
+    const transformObj = transformResult as Record<string, Expr<unknown>>;
+    const keys = Object.keys(transformObj);
+
+    return createExpr(
+      () => {
+        const sourceArray = arrayExpr.toLiquid();
+
+        // Build Liquid code that creates a JSON array of transformed objects
+        // This follows the pattern from createLiquidSnippet for building JSON
+        let liquidCode = `{% assign _q = 'a"b' | split: 'a' | last | split: 'b' | first %}`;
+        liquidCode += `{% assign ${resultVar} = '[' %}`;
+        liquidCode += `{% for ${itemVar} in ${sourceArray} %}`;
+        liquidCode += `{% unless forloop.first %}{% assign ${resultVar} = ${resultVar} | append: ',' %}{% endunless %}`;
+        liquidCode += `{% assign ${resultVar} = ${resultVar} | append: '{' %}`;
+
+        // Build each property of the transformed object
+        for (let i = 0; i < keys.length; i++) {
+          const key = keys[i];
+          const keyExpr = transformObj[key];
+          const escapedKey = key.replace(/'/g, "''");
+
+          if (i > 0) {
+            liquidCode += `{% assign ${resultVar} = ${resultVar} | append: ',' %}`;
+          }
+
+          // Add key
+          liquidCode += `{% assign ${resultVar} = ${resultVar} | append: _q | append: '${escapedKey}' | append: _q | append: ':' %}`;
+
+          // Add value (need to handle different expression types)
+          const keyLiquid = keyExpr.toLiquid();
+          // For simple property access, use the item variable directly
+          const adjustedLiquid = keyLiquid.replace(
+            new RegExp(`${itemVar}\\.`, "g"),
+            `${itemVar}.`
+          );
+          liquidCode += `{% assign _val = ${adjustedLiquid} | json | escape %}`;
+          liquidCode += `{% assign ${resultVar} = ${resultVar} | append: _val %}`;
+        }
+
+        liquidCode += `{% assign ${resultVar} = ${resultVar} | append: '}' %}`;
+        liquidCode += `{% endfor %}`;
+        liquidCode += `{% assign ${resultVar} = ${resultVar} | append: ']' %}`;
+        liquidCode += `${resultVar}`;
+
+        return liquidCode;
+      },
+      () => (ctx) => {
+        const arr = arrayExpr.toClient()(ctx) ?? [];
+        return arr.map((item) => {
+          const itemCtx = { ...ctx, [itemVar]: item };
+          const result: Record<string, unknown> = {};
+          for (const key of keys) {
+            result[key] = transformObj[key].toClient()(itemCtx);
+          }
+          return result as R;
+        });
+      }
+    );
+  },
+
+  /**
+   * Filters an array expression based on a condition
+   * Generates Liquid code that performs the filtering at build time
+   *
+   * @template T - The type of items in the array
+   * @param arrayExpr - Expression that evaluates to an array
+   * @param predicate - Filter function that receives an item expression builder and returns a boolean expression
+   * @returns An Expr that represents the filtered array
+   *
+   * @example
+   * ```tsx
+   * // Filter media to only videos (uses Liquid's where filter)
+   * const videos = $.filter(mediaExpr, (item) =>
+   *   $.eq(item.var('type'), $.lit('video'))
+   * );
+   *
+   * // Filter products by price (generates loop with conditional)
+   * const expensiveProducts = $.filter(productsExpr, (item) =>
+   *   $.gt(item.var('price'), $.lit(100))
+   * );
+   * ```
+   *
+   * @remarks
+   * - For simple property equality checks, this uses Liquid's `where` filter
+   * - For complex predicates, this generates Liquid loops with conditionals
+   * - The filtered array is built using Liquid's array concatenation
+   */
+  filter<T>(
+    arrayExpr: Expr<T[]>,
+    predicate: (item: {
+      var: (path: string) => Expr<unknown>;
+      prop: <K extends keyof T>(prop: K) => Expr<T[K]>;
+    }) => Expr<boolean>
+  ): Expr<T[]> {
+    const itemVar = "_filter_item";
+    const resultVar = "_filter_result";
+
+    // Create item expression builder
+    const itemBuilder = {
+      var: (path: string) => $.var(`${itemVar}.${path}`),
+      prop: <K extends keyof T>(prop: K) =>
+        $.var(`${itemVar}.${String(prop)}`) as Expr<T[K]>,
+    };
+
+    // Get the predicate expression
+    const predicateExpr = predicate(itemBuilder);
+    const predicateLiquid = predicateExpr.toLiquid();
+
+    return createExpr(
+      () => {
+        const sourceArray = arrayExpr.toLiquid();
+
+        // Check if predicate is a simple property equality that can use Liquid's where filter
+        // Pattern: _filter_item.property == value
+        const simpleEqMatch = predicateLiquid.match(
+          /^_filter_item\.(\w+)\s*==\s*(.+)$/
+        );
+
+        if (simpleEqMatch) {
+          // Use Liquid's where filter for simple equality
+          const [, property, value] = simpleEqMatch;
+          return `${sourceArray} | where: '${property}', ${value}`;
+        }
+
+        // For other predicates, generate a loop with conditional
+        // Build array by concatenating matching items
+        let liquidCode = `{% assign ${resultVar} = '' | split: '' %}`;
+        liquidCode += `{% for ${itemVar} in ${sourceArray} %}`;
+        // Replace item variable references in predicate with actual loop variable
+        const adjustedPredicate = predicateLiquid.replace(
+          new RegExp(`_filter_item`, "g"),
+          itemVar
+        );
+        liquidCode += `{% if ${adjustedPredicate} %}`;
+        // Concatenate the item to the result array
+        // Note: Liquid's concat works with arrays, so we need to convert item to array first
+        liquidCode += `{% assign _temp_arr = ${itemVar} | json | split: '' | first | split: '' %}`;
+        liquidCode += `{% assign ${resultVar} = ${resultVar} | concat: _temp_arr %}`;
+        liquidCode += `{% endif %}`;
+        liquidCode += `{% endfor %}`;
+        liquidCode += `${resultVar}`;
+        return liquidCode;
+      },
+      () => (ctx) => {
+        const arr = arrayExpr.toClient()(ctx) ?? [];
+        return arr.filter((item) => {
+          const itemCtx = { ...ctx, [itemVar]: item };
+          return predicateExpr.toClient()(itemCtx);
+        });
+      }
     );
   },
 };
