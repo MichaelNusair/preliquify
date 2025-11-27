@@ -7,6 +7,7 @@ Preliquify provides primitives that compile to Liquid template syntax. These com
 - [Conditional](#conditional)
 - [For](#for)
 - [Choose](#choose)
+- [Target](#target)
 - [Hydrate](#hydrate)
 
 ## Conditional
@@ -269,6 +270,87 @@ Compiles to:
   }}
 />
 ```
+
+## Target
+
+The `<Target>` component helps you render different content for build-time (liquid) vs runtime (client) without manual `useTarget()` checks. This avoids linting issues with conditional hooks.
+
+### Basic Usage
+
+```tsx
+import { Target, For, $ } from "@preliquify/preact";
+
+function ProductList({ products }) {
+  return (
+    <Target
+      liquid={
+        <For each={$.var("products")} as="product">
+          <div>{{ product.title }}</div>
+        </For>
+      }
+      client={
+        <div>
+          {products.map((p, i) => (
+            <div key={i}>{p.title}</div>
+          ))}
+        </div>
+      }
+    />
+  );
+}
+```
+
+### With Hooks (Avoids Linting Issues)
+
+One of the main benefits of `<Target>` is that it allows you to use hooks in the client path without linting warnings:
+
+```tsx
+import { Target, For, $ } from "@preliquify/preact";
+
+function MyComponent({ gallery }) {
+  return (
+    <Target
+      liquid={
+        <For each={$.var("gallery")} as="item">
+          <div>{{ item.title }}</div>
+        </For>
+      }
+      client={<ComponentWithHooks gallery={gallery} />}
+    />
+  );
+}
+
+function ComponentWithHooks({ gallery }) {
+  // ✅ Hooks are safe here - always called (not conditionally)
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+  
+  return (
+    <div>
+      {gallery.map((item, i) => (
+        <div key={item.id}>{item.title}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+### Why Use `<Target>`?
+
+- ✅ **Avoids linting warnings** - No "hooks called conditionally" errors
+- ✅ **Cleaner code** - No manual `useTarget()` calls needed
+- ✅ **Clear separation** - Liquid and client rendering logic are clearly separated
+- ✅ **Type-safe** - Full TypeScript support
+
+### When to Use
+
+Use `<Target>` when you need to:
+- Render different content at build time vs runtime
+- Use hooks in your client-side rendering
+- Avoid linting warnings about conditional hooks
+- Keep code organized and maintainable
+
+If you don't need different rendering logic, you can use `createLiquidSnippet` with Approach 1 (placeholder mode) instead.
 
 ## Hydrate
 

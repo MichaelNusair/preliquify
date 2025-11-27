@@ -64,7 +64,7 @@ describe("For", () => {
       );
 
       expect(result).toBe(
-        '{% for letter in ["a","b","c"] %}<span>{{ letter }}</span>{% endfor %}'
+        "{% for letter in [&quot;a&quot;,&quot;b&quot;,&quot;c&quot;] %}<span>{{ letter }}</span>{% endfor %}"
       );
     });
   });

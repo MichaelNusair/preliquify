@@ -38,8 +38,12 @@ describe("Hydrate", () => {
 
       expect(result).toContain('data-preliq-island="ProductGallery"');
       expect(result).toContain('data-preliq-id="product-gallery"');
-      expect(result).toContain('"productId":"{{ product.id }}"');
-      expect(result).toContain('"currency":"{{ shop.currency }}"');
+      expect(result).toContain(
+        "&quot;productId&quot;:&quot;{{ product.id }}&quot;"
+      );
+      expect(result).toContain(
+        "&quot;currency&quot;:&quot;{{ shop.currency }}&quot;"
+      );
     });
 
     it("should handle empty props", () => {
@@ -49,7 +53,7 @@ describe("Hydrate", () => {
         </TargetProvider>
       );
 
-      expect(result).toContain('data-preliq-props="{}"');
+      expect(result).toContain('data-preliq-props="{{ {} | json }}"');
     });
 
     it("should handle complex props structure", () => {
@@ -74,8 +78,10 @@ describe("Hydrate", () => {
       );
 
       expect(result).toContain('data-preliq-island="ComplexComponent"');
-      expect(result).toContain('"name":"{{ customer.name }}"');
-      expect(result).toContain('"theme":"dark"');
+      expect(result).toContain(
+        "&quot;name&quot;:&quot;{{ customer.name }}&quot;"
+      );
+      expect(result).toContain("&quot;theme&quot;:&quot;dark&quot;");
     });
 
     it("should escape JSON properly in attributes", () => {

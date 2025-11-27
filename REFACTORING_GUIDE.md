@@ -59,7 +59,35 @@ If you want your component to render server-side without JavaScript, you need to
 
 To render server-side without JS, replace JavaScript array methods with Preliquify primitives:
 
-Create separate components for Liquid rendering vs client-side:
+**Recommended: Use the `<Target>` component** to avoid manual `useTarget()` checks and prevent linting issues:
+
+```tsx
+import { Target, For, $ } from '@preliquify/preact';
+
+function MyComponent({ gallery }) {
+  return (
+    <Target
+      liquid={
+        <For each={$.var('gallery')} as="item">
+          <div>{{ item.title }}</div>
+        </For>
+      }
+      client={
+        <div>
+          {gallery.map(item => <div key={item.id}>{item.title}</div>)}
+        </div>
+      }
+    />
+  );
+}
+```
+
+**Why use `<Target>`?**
+- ✅ Avoids linting warnings about conditional hooks
+- ✅ Cleaner code - no manual `useTarget()` calls needed
+- ✅ Hooks can be used in client path without issues
+
+**Alternative: Separate components with manual `useTarget()`** (when you need more control):
 
 ```tsx
 function MyComponentLiquid({ gallery }) {
@@ -73,9 +101,11 @@ function MyComponentLiquid({ gallery }) {
 
 function MyComponentClient({ gallery }) {
   // Use regular JavaScript for client-side
+  // ✅ Hooks are safe here - always called
+  const [state, setState] = useState(0);
   return (
     <div>
-      {gallery.map(item => <div>{item.title}</div>)}
+      {gallery.map(item => <div key={item.id}>{item.title}</div>)}
     </div>
   );
 }
@@ -322,6 +352,84 @@ export function GalleryComponent({
 - [ ] Verify component renders in generated Liquid file
 - [ ] Verify component works without JavaScript in browser
 
+## Handling Linting Warnings
+
+### "React Hooks called conditionally" Warnings
+
+If you see linting warnings about hooks being called conditionally, it's because you're calling hooks after a `useTarget()` check. 
+
+**Solution: Use the `<Target>` component** (recommended):
+
+```tsx
+// ✅ Good - No linting issues
+import { Target, For, $ } from '@preliquify/preact';
+
+function MyComponent({ gallery }) {
+  return (
+    <Target
+      liquid={<For each={$.var('gallery')} as="item">...</For>}
+      client={<ComponentWithHooks gallery={gallery} />}
+    />
+  );
+}
+
+function ComponentWithHooks({ gallery }) {
+  const [state, setState] = useState(0); // ✅ Safe - always called
+  return <div>...</div>;
+}
+```
+
+**Alternative: Extract hooks to separate component**:
+
+```tsx
+// ✅ Good - No linting issues
+function MyComponent({ gallery }) {
+  const target = useTarget();
+  if (target === 'liquid') {
+    return <For each={$.var('gallery')} as="item">...</For>;
+  }
+  // Extract to separate component - hooks are always called
+  return <ComponentWithHooks gallery={gallery} />;
+}
+
+function ComponentWithHooks({ gallery }) {
+  const [state, setState] = useState(0); // ✅ Safe - always called
+  return <div>...</div>;
+}
+```
+
+**❌ Bad - Causes linting warnings**:
+
+```tsx
+// ❌ Don't do this - hooks called conditionally
+function MyComponent({ gallery }) {
+  const target = useTarget();
+  if (target === 'liquid') {
+    return <For each={$.var('gallery')} as="item">...</For>;
+  }
+  const [state, setState] = useState(0); // ❌ Called conditionally!
+  return <div>...</div>;
+}
+```
+
+**Suppressing warnings (if needed)**:
+
+If you must use the manual pattern and can't refactor, you can suppress the warning with a comment:
+
+```tsx
+function MyComponent({ gallery }) {
+  const target = useTarget();
+  if (target === 'liquid') {
+    return <For each={$.var('gallery')} as="item">...</For>;
+  }
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const [state, setState] = useState(0);
+  return <div>...</div>;
+}
+```
+
+However, **using `<Target>` is the recommended approach** as it avoids this issue entirely.
+
 ## Key Principles
 
 ### Approach 1 (Placeholder Mode - Default)
@@ -333,8 +441,9 @@ export function GalleryComponent({
 ### Approach 2 (SSR Without JS - Advanced)
 1. **Use Preliquify primitives** - `<For />`, `<Conditional />`, `<Choose />`
 2. **Replace JS methods** - `.map()` → `<For />`, `&&` → `<Conditional />`
-3. **Hooks are runtime-only** - Use for client-side interactivity only
-4. **Test without JS** - Verify component works with JavaScript disabled
+3. **Use `<Target>` component** - Avoids linting issues and code duplication
+4. **Hooks are runtime-only** - Use for client-side interactivity only
+5. **Test without JS** - Verify component works with JavaScript disabled
 
 ## Testing
 

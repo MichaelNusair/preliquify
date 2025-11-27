@@ -114,10 +114,43 @@ In loops and conditionals, access Liquid variables as strings:
 
 ### Combine Liquid and Client-Side Rendering
 
-Use `useTarget()` to differentiate between build time and runtime:
+**Recommended: Use the `<Target>` component** to avoid manual `useTarget()` checks and prevent linting issues:
 
 ```tsx
-import { useTarget } from "@preliquify/preact";
+import { Target, For, $ } from "@preliquify/preact";
+
+function ProductList({ products }) {
+  return (
+    <Target
+      liquid={
+        <For each={$.var("products")} as="p">
+          <ProductCard product={p} />
+        </For>
+      }
+      client={
+        <div>
+          {products.map((p, i) => (
+            <ProductCard key={i} product={p} />
+          ))}
+        </div>
+      }
+    />
+  );
+}
+```
+
+**Why use `<Target>`?**
+- ✅ Avoids linting warnings about conditional hooks
+- ✅ Cleaner code - no manual `useTarget()` calls
+- ✅ Separates liquid and client rendering logic clearly
+- ✅ Hooks can be used in client path without issues
+
+**Alternative: Manual `useTarget()` (when you need more control)**
+
+If you need more control, you can use `useTarget()` directly, but be careful with hooks:
+
+```tsx
+import { useTarget, For, $ } from "@preliquify/preact";
 
 function ProductList({ products }) {
   const target = useTarget();
@@ -132,6 +165,13 @@ function ProductList({ products }) {
   }
   
   // Runtime - use JavaScript
+  // ⚠️ Important: Don't call hooks conditionally here!
+  // If you need hooks, extract to a separate component:
+  return <ProductListClient products={products} />;
+}
+
+function ProductListClient({ products }) {
+  const [state, setState] = useState(0); // ✅ Safe - always called
   return (
     <div>
       {products.map((p, i) => (

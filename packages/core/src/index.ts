@@ -8,4 +8,5 @@ export * from "./primitives/Conditional.js";
 export * from "./primitives/For.js";
 export * from "./primitives/Choose.js";
 export * from "./primitives/Hydrate.js";
+export * from "./primitives/Target.js";
 export * from "./primitives/createLiquidSnippet.js";

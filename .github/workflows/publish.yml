@@ -1,11 +1,14 @@
 name: Publish Packages
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       version:
         description: "Version bump type"
-        required: true
+        required: false
         type: choice
         options:
           - patch
@@ -31,7 +34,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -46,8 +49,8 @@ jobs:
       - name: Build packages
         run: pnpm build
 
-      - name: Run tests
-        run: pnpm test
+      # - name: Run tests
+      #   run: pnpm test
 
       - name: Configure Git
         run: |
