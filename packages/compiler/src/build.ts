@@ -16,9 +16,6 @@ import {
 } from "./errors.js";
 import chokidar from "chokidar";
 
-/**
- * Find the project root by locating node_modules directory
- */
 async function findProjectRoot(startPath: string): Promise<string | null> {
   let current = resolve(startPath);
   const filesystemRoot = parse(current).root;
@@ -38,10 +35,6 @@ async function findProjectRoot(startPath: string): Promise<string | null> {
   return null;
 }
 
-/**
- * Find and symlink all external dependencies needed for module resolution
- * in the temporary directory
- */
 async function setupTempNodeModules(
   projectRoot: string,
   tmpDir: string,
@@ -52,16 +45,13 @@ async function setupTempNodeModules(
 
   await fs.mkdir(tmpNodeModules, { recursive: true });
 
-  // Create a require function from the project root to resolve packages
   let projectRequire: NodeRequire;
   try {
     projectRequire = createRequire(join(projectRoot, "package.json"));
   } catch {
-    // Fallback: use a file in the project root
     projectRequire = createRequire(join(projectRoot, "package.json"));
   }
 
-  // Track unique base packages (e.g., "preact" from "preact/hooks")
   const basePackages = new Set<string>();
   for (const pkg of externalPackages) {
     basePackages.add(pkg.split("/")[0]);
@@ -69,16 +59,11 @@ async function setupTempNodeModules(
 
   for (const basePkg of basePackages) {
     try {
-      // Try to resolve the package's main entry point
       const resolvedPath = projectRequire.resolve(basePkg);
 
-      // Find the package root directory
-      // The resolved path might be a file inside the package
       let current = dirname(resolvedPath);
       let actualPkgDir: string | null = null;
 
-      // Walk up the directory tree to find the package root
-      // The package root should have a package.json with name matching basePkg
       while (current !== dirname(current)) {
         try {
           const pkgJsonPath = join(current, "package.json");
@@ -90,11 +75,8 @@ async function setupTempNodeModules(
             actualPkgDir = current;
             break;
           }
-        } catch {
-          // Continue searching
-        }
+        } catch {}
 
-        // Check if we're at a node_modules boundary
         if (
           basename(current) === basePkg &&
           basename(dirname(current)) === "node_modules"
@@ -107,50 +89,35 @@ async function setupTempNodeModules(
       }
 
       if (!actualPkgDir) {
-        // Fallback: if we can't find package.json, assume the directory
-        // containing the resolved file is the package root
         actualPkgDir = dirname(resolvedPath);
       }
 
       const tmpPkgPath = join(tmpNodeModules, basePkg);
 
       try {
-        // Remove existing symlink if it exists
         try {
           const stat = await fs.lstat(tmpPkgPath);
           if (stat.isSymbolicLink()) {
             await fs.unlink(tmpPkgPath);
           }
-        } catch {
-          // Ignore if it doesn't exist
-        }
+        } catch {}
 
-        // Create symlink to the actual package directory
-        // Use absolute path for the symlink target
         const absolutePkgDir = resolve(actualPkgDir);
         await fs.symlink(absolutePkgDir, tmpPkgPath, "dir");
       } catch (e: any) {
-        // If symlink fails, try on Windows with junction
         if (process.platform === "win32") {
           try {
             const absolutePkgDir = resolve(actualPkgDir);
             await fs.symlink(absolutePkgDir, tmpPkgPath, "junction");
-          } catch {
-            // If all else fails, we'll rely on NODE_PATH fallback
-            // This is okay - NODE_PATH should handle it
-          }
+          } catch {}
         }
       }
-    } catch (e) {
-      // Package not found - this is okay, we'll rely on NODE_PATH
-      // and the project's node_modules being accessible
-    }
+    } catch (e) {}
   }
 }
 
 function createBrowserPolyfills() {
   return `
-    // SSR detection flag
     if (typeof globalThis.__PRELIQUIFY_SSR__ === 'undefined') {
       globalThis.__PRELIQUIFY_SSR__ = typeof window === 'undefined';
     }
@@ -194,7 +161,6 @@ function createBrowserPolyfills() {
       };
     }
     
-    // localStorage polyfill for SSR
     if (typeof globalThis.localStorage === 'undefined') {
       const storage = new Map();
       globalThis.localStorage = {
@@ -210,7 +176,6 @@ function createBrowserPolyfills() {
       };
     }
     
-    // HTMLElement class polyfill for SSR instanceof checks
     if (typeof globalThis.HTMLElement === 'undefined') {
       globalThis.HTMLElement = class HTMLElement {
         constructor() {}
@@ -231,7 +196,6 @@ function createBrowserPolyfills() {
       };
     }
     
-    // Element class polyfill
     if (typeof globalThis.Element === 'undefined') {
       globalThis.Element = globalThis.HTMLElement;
     }
@@ -276,8 +240,33 @@ function createBrowserPolyfills() {
   `;
 }
 
+function applySuffixIfNeeded(
+  filename: string,
+  suffixDistFiles: boolean
+): string {
+  if (!suffixDistFiles) {
+    return filename;
+  }
+
+  const firstDotIndex = filename.indexOf(".");
+  if (firstDotIndex === -1) {
+    return `${filename}-prlq`;
+  }
+
+  const nameWithoutExt = filename.slice(0, firstDotIndex);
+  const ext = filename.slice(firstDotIndex);
+  return `${nameWithoutExt}-prlq${ext}`;
+}
+
 export async function build(opts: BuildOptions) {
-  const { srcDir, outLiquidDir, outClientDir, watch, verbose = false } = opts;
+  const {
+    srcDir,
+    outLiquidDir,
+    outClientDir,
+    watch,
+    verbose = false,
+    suffixDistFiles = true,
+  } = opts;
   const errorReporter = createErrorReporter(verbose);
 
   let entries: string[];
@@ -311,10 +300,8 @@ export async function build(opts: BuildOptions) {
     );
   }
 
-  // Create a temporary directory for intermediate files
   const tmpDir = await mkdtemp(join(tmpdir(), "preliquify-"));
 
-  // Find project root from the first file (or srcDir)
   const projectRoot = await findProjectRoot(srcDir);
   if (!projectRoot) {
     throw new FileSystemError(
@@ -323,17 +310,14 @@ export async function build(opts: BuildOptions) {
     );
   }
 
-  // External packages that need to be resolved from project's node_modules
   const externalPackages = [
     "preact",
     "preact/hooks",
     "preact-render-to-string",
   ];
 
-  // Set up node_modules in temp directory with symlinks to external dependencies
   await setupTempNodeModules(projectRoot, tmpDir, externalPackages);
 
-  // Store original NODE_PATH and extend it to include project's node_modules
   const originalNodePath = process.env.NODE_PATH;
   const projectNodeModules = join(projectRoot, "node_modules");
   const extendedNodePath = originalNodePath
@@ -343,9 +327,8 @@ export async function build(opts: BuildOptions) {
 
   try {
     let needsRuntime = false;
-    const concurrency = 4; // Process 4 files in parallel
+    const concurrency = 4;
 
-    // Process files in batches for better performance
     const processBatch = async (batch: string[]) => {
       return Promise.all(
         batch.map(async (file) => {
@@ -354,10 +337,6 @@ export async function build(opts: BuildOptions) {
           try {
             const code = await fs.readFile(file, "utf8");
             if (needsClientRuntime(code)) needsRuntime = true;
-
-            // Bundle this TSX to ESM so Node can import it for SSR-to-Liquid
-            // Keep preact external so it uses the same instance as renderToLiquid
-            // (needed for hooks to work correctly)
 
             await esbuild({
               entryPoints: [file],
@@ -371,47 +350,40 @@ export async function build(opts: BuildOptions) {
               banner: {
                 js: createBrowserPolyfills(),
               },
-              // Performance optimizations
               treeShaking: true,
               minifySyntax: true,
-              minifyIdentifiers: false, // Keep identifiers for better debugging
+              minifyIdentifiers: false,
               target: "node14",
               legalComments: "none",
             });
 
-            // Create a safe import context with polyfills
             const polyfillCode = createBrowserPolyfills();
             const modUrl = pathToFileURL(tmpOut).href;
 
-            // Evaluate polyfills before importing
             eval(polyfillCode);
 
-            // Import the bundled module
-            // With NODE_PATH set and symlinks in place, Node.js should be able to resolve
-            // all external dependencies from the project's node_modules
             const mod = await import(modUrl);
             const liquid = await renderComponentToLiquid(mod, file);
 
-            // Skip writing empty liquid files - only write if there's actual content
             const trimmedLiquid = liquid.trim();
             if (trimmedLiquid) {
-              const outPath = join(
-                outLiquidDir,
-                basename(file).replace(/\.tsx$/, ".liquid")
+              const liquidFilename = basename(file).replace(
+                /\.tsx$/,
+                ".liquid"
               );
+              const finalFilename = applySuffixIfNeeded(
+                liquidFilename,
+                suffixDistFiles
+              );
+              const outPath = join(outLiquidDir, finalFilename);
               await fs.writeFile(outPath, liquid, "utf8");
             }
-            // If liquid is empty/whitespace, silently skip - don't create the file
           } catch (error: any) {
-            // If component can't be rendered due to missing export, skip silently
-            // This happens for internal sub-components that aren't meant to be snippets
-            // But still report other compilation/runtime errors
             const errorMessage = error?.message || String(error);
             const isMissingComponentError = errorMessage.includes(
               "No component export found"
             );
 
-            // Common browser API errors that can be ignored during SSR
             const browserAPIErrors = [
               "window is not defined",
               "document is not defined",
@@ -426,7 +398,6 @@ export async function build(opts: BuildOptions) {
 
             if (!isMissingComponentError) {
               if (isBrowserAPIError && verbose) {
-                // Warn instead of error for browser API issues - they're handled by polyfills
                 console.warn(
                   `⚠️  Browser API warning in ${basename(file)}: ${errorMessage}\n   This may be handled by SSR polyfills.`
                 );
@@ -444,20 +415,21 @@ export async function build(opts: BuildOptions) {
       );
     };
 
-    // Process files in batches
     for (let i = 0; i < entries.length; i += concurrency) {
       const batch = entries.slice(i, i + concurrency);
       await processBatch(batch);
     }
 
-    // Ship enhanced client runtime if needed
     if (needsRuntime) {
-      // Build the runtime
       const runtimePath = fileURLToPath(
         new URL("../src/runtime/client-runtime.ts", import.meta.url)
       );
 
-      const runtimeOutPath = join(outClientDir, "preliquify.runtime.js");
+      const runtimeFilename = applySuffixIfNeeded(
+        "preliquify.runtime.js",
+        suffixDistFiles
+      );
+      const runtimeOutPath = join(outClientDir, runtimeFilename);
 
       try {
         await esbuild({
@@ -468,18 +440,16 @@ export async function build(opts: BuildOptions) {
           outfile: runtimeOutPath,
           minify: true,
           target: ["es2015"],
-          // Additional optimizations
           treeShaking: true,
-          mangleProps: /^_/, // Mangle private properties starting with _
+          mangleProps: /^_/,
           legalComments: "none",
-          pure: ["console.log"], // Remove console.logs in production
+          pure: ["console.log"],
           drop: ["debugger"],
           globalName: "PreliquifyRuntime",
         });
 
         console.log(`✅ Generated client runtime: ${runtimeOutPath}`);
       } catch (error: any) {
-        // Fallback to simple runtime if build fails
         console.warn("⚠️  Failed to build enhanced runtime, using fallback");
 
         const fallbackRuntime = `
@@ -517,27 +487,21 @@ export async function build(opts: BuildOptions) {
       await startWatchMode(opts, errorReporter);
     }
 
-    // Check if any errors occurred during compilation
     errorReporter.throwIfErrors();
 
-    // Success message
     if (entries.length > 0 && !errorReporter.hasErrors()) {
       console.log(`✅ Successfully compiled ${entries.length} component(s)`);
     }
   } finally {
-    // Restore original NODE_PATH
     if (originalNodePath !== undefined) {
       process.env.NODE_PATH = originalNodePath || "";
     } else {
       delete process.env.NODE_PATH;
     }
 
-    // Clean up temporary directory
     try {
       await fs.rm(tmpDir, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
+    } catch {}
   }
 }
 
@@ -545,13 +509,12 @@ async function startWatchMode(
   opts: BuildOptions,
   errorReporter: ReturnType<typeof createErrorReporter>
 ) {
-  const { srcDir, outLiquidDir, verbose } = opts;
+  const { srcDir, outLiquidDir, verbose, suffixDistFiles = true } = opts;
 
   console.log("\n👀 Starting watch mode...");
   console.log(`   Watching: ${srcDir}`);
   console.log(`   Output: ${outLiquidDir}\n`);
 
-  // Create file watcher
   const watcher = chokidar.watch("**/*.tsx", {
     cwd: srcDir,
     ignored: /(^|[\/\\])\../, // ignore dotfiles
@@ -559,7 +522,6 @@ async function startWatchMode(
     ignoreInitial: true,
   });
 
-  // Debounce to handle multiple rapid changes
   let buildTimeout: NodeJS.Timeout | null = null;
   const debouncedBuild = async (path: string, event: string) => {
     if (buildTimeout) clearTimeout(buildTimeout);
@@ -569,36 +531,32 @@ async function startWatchMode(
       errorReporter.clear();
 
       try {
-        // Rebuild all files (you could optimize to rebuild only changed files)
         await build({ ...opts, watch: false });
       } catch (error) {
-        // Errors are already reported by errorReporter
         if (verbose) {
           console.error("\n❌ Build failed, waiting for changes...");
         }
       }
-    }, 300); // 300ms debounce
+    }, 300);
   };
 
-  // Watch events
   watcher
     .on("add", (path) => debouncedBuild(path, "Added"))
     .on("change", (path) => debouncedBuild(path, "Changed"))
     .on("unlink", async (path) => {
       console.log(`\n🗑️  Removed: ${path}`);
 
-      // Remove corresponding .liquid file
-      const liquidFile = join(
-        outLiquidDir,
-        basename(path).replace(/\.tsx$/, ".liquid")
+      const liquidFilename = basename(path).replace(/\.tsx$/, ".liquid");
+      const finalFilename = applySuffixIfNeeded(
+        liquidFilename,
+        suffixDistFiles
       );
+      const liquidFile = join(outLiquidDir, finalFilename);
 
       try {
         await fs.unlink(liquidFile);
         console.log(`   Deleted: ${liquidFile}`);
-      } catch (error) {
-        // File might not exist, that's okay
-      }
+      } catch (error) {}
     })
     .on("error", (error) => {
       console.error("\n❌ Watcher error:", error);
@@ -607,13 +565,11 @@ async function startWatchMode(
       console.log("✅ Ready for changes\n");
     });
 
-  // Handle graceful shutdown
   process.on("SIGINT", () => {
     console.log("\n\n👋 Stopping watch mode...");
     watcher.close();
     process.exit(0);
   });
 
-  // Keep process alive
   await new Promise(() => {});
 }

@@ -5,4 +5,5 @@ export type BuildOptions = {
   jsxImportSource?: string; // default: "preact"
   watch?: boolean;
   verbose?: boolean; // Show detailed error information
+  suffixDistFiles?: boolean; // default: true - suffix all dist files with -prlq
 };

@@ -11,7 +11,6 @@ interface PreliquifyRuntime {
   debug: boolean;
 }
 
-// Global runtime instance
 declare global {
   interface Window {
     Preliquify: Record<string, any>;
@@ -19,7 +18,6 @@ declare global {
   }
 }
 
-// Lightweight error boundary for hydration
 function safeHydrate(
   element: Element,
   Component: any,
@@ -34,11 +32,9 @@ function safeHydrate(
       );
     }
 
-    // Render component
     const vnode = preact.h(Component, props);
     preact.render(vnode, element);
 
-    // Track mounted component
     const id = element.getAttribute("data-preliq-id");
     if (id) {
       runtime.mounted.set(id, { element, Component, props });
@@ -53,10 +49,8 @@ function safeHydrate(
       console.error("Props:", props);
     }
 
-    // Add error indicator to element
     element.setAttribute("data-preliq-error", "true");
 
-    // Dispatch custom event for error monitoring
     element.dispatchEvent(
       new CustomEvent("preliquify:error", {
         detail: { error, component: Component.name || "Unknown", props },
@@ -66,7 +60,6 @@ function safeHydrate(
   }
 }
 
-// Parse props with error handling
 function parseProps(element: Element): Record<string, any> {
   const propsAttr = element.getAttribute("data-preliq-props");
   if (!propsAttr) return {};
@@ -79,7 +72,6 @@ function parseProps(element: Element): Record<string, any> {
   }
 }
 
-// Progressive enhancement: only hydrate visible components
 function isElementVisible(element: Element): boolean {
   const rect = element.getBoundingClientRect();
   const viewHeight = Math.max(
@@ -91,7 +83,6 @@ function isElementVisible(element: Element): boolean {
     window.innerWidth
   );
 
-  // Check if element is in viewport with some margin
   const margin = 100;
   return !(
     rect.bottom < -margin ||
@@ -101,7 +92,6 @@ function isElementVisible(element: Element): boolean {
   );
 }
 
-// Main hydration function
 function hydrateIslands(runtime: PreliquifyRuntime): void {
   const islands = document.querySelectorAll(
     "[data-preliq-island]:not([data-preliq-hydrated])"
@@ -109,7 +99,6 @@ function hydrateIslands(runtime: PreliquifyRuntime): void {
   const visibleIslands: Element[] = [];
   const deferredIslands: Element[] = [];
 
-  // Sort islands by visibility
   islands.forEach((island) => {
     if (isElementVisible(island)) {
       visibleIslands.push(island);
@@ -118,12 +107,10 @@ function hydrateIslands(runtime: PreliquifyRuntime): void {
     }
   });
 
-  // Hydrate visible islands immediately
   visibleIslands.forEach((island) => {
     hydrateIsland(island, runtime);
   });
 
-  // Set up intersection observer for deferred islands
   if (deferredIslands.length > 0 && "IntersectionObserver" in window) {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -135,18 +122,16 @@ function hydrateIslands(runtime: PreliquifyRuntime): void {
         });
       },
       {
-        rootMargin: "100px", // Start hydrating 100px before element comes into view
+        rootMargin: "100px",
       }
     );
 
     deferredIslands.forEach((island) => observer.observe(island));
   } else {
-    // Fallback: hydrate all if IntersectionObserver not supported
     deferredIslands.forEach((island) => hydrateIsland(island, runtime));
   }
 }
 
-// Hydrate a single island
 function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
   if (element.hasAttribute("data-preliq-hydrated")) return;
 
@@ -158,7 +143,6 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
     return;
   }
 
-  // Find component
   const Component =
     runtime.components.get(componentName) || window.Preliquify?.[componentName];
 
@@ -168,14 +152,11 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
     return;
   }
 
-  // Parse props and hydrate
   const props = parseProps(element);
   safeHydrate(element, Component, props, runtime);
 
-  // Mark as hydrated
   element.setAttribute("data-preliq-hydrated", "true");
 
-  // Dispatch hydration complete event
   element.dispatchEvent(
     new CustomEvent("preliquify:hydrated", {
       detail: { id, component: componentName },
@@ -184,7 +165,6 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
   );
 }
 
-// Initialize runtime
 function initRuntime(): PreliquifyRuntime {
   if (window.__preliquifyRuntime) {
     return window.__preliquifyRuntime;
@@ -199,7 +179,6 @@ function initRuntime(): PreliquifyRuntime {
 
   window.__preliquifyRuntime = runtime;
 
-  // Initialize Preliquify namespace if not exists
   if (!window.Preliquify) {
     window.Preliquify = {};
   }
@@ -207,14 +186,11 @@ function initRuntime(): PreliquifyRuntime {
   return runtime;
 }
 
-// Public API
 const runtime = initRuntime();
 
-// Auto-hydrate on DOM ready
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => hydrateIslands(runtime));
 } else {
-  // Use requestIdleCallback for better performance if available
   if ("requestIdleCallback" in window) {
     (window as any).requestIdleCallback(() => hydrateIslands(runtime));
   } else {
@@ -222,15 +198,12 @@ if (document.readyState === "loading") {
   }
 }
 
-// Export public API
 export const Preliquify = {
-  // Register a component
   register(name: string, component: any): void {
     runtime.components.set(name, component);
     window.Preliquify[name] = component;
   },
 
-  // Manually hydrate new islands (useful for dynamic content)
   hydrate(container?: Element): void {
     const searchRoot = container || document.body;
     const islands = searchRoot.querySelectorAll(
@@ -239,22 +212,18 @@ export const Preliquify = {
     islands.forEach((island) => hydrateIsland(island, runtime));
   },
 
-  // Get mounted component by ID
   getComponent(id: string): any {
     return runtime.mounted.get(id);
   },
 
-  // Get all hydration errors
   getErrors(): Error[] {
     return [...runtime.errors];
   },
 
-  // Enable/disable debug mode
   setDebug(enabled: boolean): void {
     runtime.debug = enabled;
   },
 
-  // Unmount a component
   unmount(id: string): boolean {
     const mounted = runtime.mounted.get(id);
     if (!mounted) return false;
@@ -269,7 +238,6 @@ export const Preliquify = {
     return false;
   },
 
-  // Re-hydrate a component with new props
   update(id: string, newProps: Record<string, any>): boolean {
     const mounted = runtime.mounted.get(id);
     if (!mounted) return false;
@@ -281,5 +249,4 @@ export const Preliquify = {
   },
 };
 
-// Make API available globally
 (window as any).__PRELIQUIFY__ = Preliquify;
