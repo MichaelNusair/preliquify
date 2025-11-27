@@ -28,7 +28,7 @@ function safeHydrate(
     const preact = (window as any).preact;
     if (!preact) {
       throw new Error(
-        "Preact not found. Make sure preact is loaded before hydration."
+        "Preact not found. Make sure preact is bundled or loaded before hydration."
       );
     }
 
@@ -43,7 +43,7 @@ function safeHydrate(
     runtime.errors.push(error as Error);
 
     if (runtime.debug) {
-      console.error("[Preliquify] Hydration error:", error);
+      console.error("[__PRELIQUIFY__] Hydration error:", error);
       console.error("Element:", element);
       console.error("Component:", Component);
       console.error("Props:", props);
@@ -171,7 +171,8 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
   }
 
   const Component =
-    runtime.components.get(componentName) || window.Preliquify?.[componentName];
+    runtime.components.get(componentName) ||
+    (window as any).__PRELIQUIFY__?.[componentName];
 
   if (!Component) {
     console.warn(`[Preliquify] Component "${componentName}" not found`);
@@ -180,8 +181,8 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
       Array.from(runtime.components.keys())
     );
     console.warn(
-      `[Preliquify] Available in window.Preliquify:`,
-      Object.keys(window.Preliquify || {})
+      `[Preliquify] Available in window.__PRELIQUIFY__:`,
+      Object.keys((window as any).__PRELIQUIFY__ || {})
     );
     element.setAttribute("data-preliq-error", "component-not-found");
     return;
@@ -214,8 +215,8 @@ function initRuntime(): PreliquifyRuntime {
 
   window.__preliquifyRuntime = runtime;
 
-  if (!window.Preliquify) {
-    window.Preliquify = {};
+  if (!(window as any).__PRELIQUIFY__) {
+    (window as any).__PRELIQUIFY__ = {};
   }
 
   return runtime;
@@ -236,7 +237,7 @@ if (document.readyState === "loading") {
 export const Preliquify = {
   register(name: string, component: any): void {
     runtime.components.set(name, component);
-    window.Preliquify[name] = component;
+    (window as any).__PRELIQUIFY__[name] = component;
   },
 
   hydrate(container?: Element): void {

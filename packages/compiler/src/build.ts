@@ -27,6 +27,102 @@ import {
 } from "./constants.js";
 
 /**
+ * Detects if a file uses createLiquidSnippet by scanning its content
+ * @param filePath - Path to the file to check
+ * @returns True if the file contains createLiquidSnippet
+ */
+async function usesCreateLiquidSnippet(filePath: string): Promise<boolean> {
+  try {
+    const content = await fs.readFile(filePath, "utf8");
+
+    // Check for import of createLiquidSnippet
+    const hasImport =
+      /import\s+.*createLiquidSnippet.*from\s+['"]@preliquify\/(preact|core)['"]/g.test(
+        content
+      );
+
+    // Check for usage (export default createLiquidSnippet or const X = createLiquidSnippet)
+    const hasUsage = /createLiquidSnippet\s*\(/g.test(content);
+
+    return hasImport && hasUsage;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Scans entry points and finds all files that use createLiquidSnippet
+ * @param entryPoints - Array of file paths, directories, or glob patterns
+ * @param verbose - Whether to log detailed information
+ * @returns Array of absolute file paths that should be compiled
+ */
+async function scanForLiquidSnippets(
+  entryPoints: string[],
+  verbose: boolean
+): Promise<string[]> {
+  const allFiles = new Set<string>();
+
+  // Resolve all entry points to actual files
+  for (const entry of entryPoints) {
+    try {
+      const stats = await fs.stat(entry);
+
+      if (stats.isDirectory()) {
+        // Scan directory for .tsx files
+        const files = await fg("**/*.tsx", {
+          cwd: entry,
+          absolute: true,
+          ignore: ["**/node_modules/**", "**/.git/**"],
+        });
+        files.forEach((f) => allFiles.add(f));
+      } else if (stats.isFile() && entry.endsWith(".tsx")) {
+        // Single file
+        allFiles.add(resolve(entry));
+      }
+    } catch (_error) {
+      // Might be a glob pattern - try resolving as glob
+      const files = await fg(entry, {
+        absolute: true,
+        ignore: ["**/node_modules/**", "**/.git/**"],
+      });
+      files.forEach((f) => allFiles.add(f));
+    }
+  }
+
+  // Filter to only files using createLiquidSnippet
+  const snippetFiles: string[] = [];
+  const libraryFiles: string[] = [];
+
+  for (const file of allFiles) {
+    if (await usesCreateLiquidSnippet(file)) {
+      snippetFiles.push(file);
+    } else {
+      libraryFiles.push(file);
+    }
+  }
+
+  if (verbose) {
+    console.log(`\n📊 Scan Results:`);
+    console.log(`   Total files found: ${allFiles.size}`);
+    console.log(`   Snippet files (will compile): ${snippetFiles.length}`);
+    console.log(`   Library files (bundle only): ${libraryFiles.length}`);
+
+    if (snippetFiles.length > 0) {
+      console.log(`\n✨ Compiling snippets:`);
+      snippetFiles.forEach((f) => console.log(`   - ${basename(f)}`));
+    }
+
+    if (libraryFiles.length > 0 && libraryFiles.length < 20) {
+      console.log(`\n📦 Library components (not compiled separately):`);
+      libraryFiles.forEach((f) => console.log(`   - ${basename(f)}`));
+    }
+    console.log();
+  }
+
+  return snippetFiles;
+}
+
+/**
  * Finds the project root by looking for node_modules directory
  * @param startPath - Starting directory path
  * @returns Project root path or null if not found
@@ -55,60 +151,97 @@ async function findProjectRoot(startPath: string): Promise<string | null> {
  * @param projectRoot - Project root directory
  * @param tmpDir - Temporary directory path
  * @param externalPackages - List of external package names to symlink
+ * @param verbose - Whether to log verbose output
  */
 async function setupTempNodeModules(
   projectRoot: string,
   tmpDir: string,
-  externalPackages: string[]
+  externalPackages: string[],
+  verbose = false
 ): Promise<void> {
   const tmpNodeModules = join(tmpDir, "node_modules");
   await fs.mkdir(tmpNodeModules, { recursive: true });
 
   const projectRequire = createRequire(join(projectRoot, "package.json"));
 
-  const basePackages = new Set<string>();
+  // Handle each package separately (including scoped packages)
   for (const pkg of externalPackages) {
-    basePackages.add(pkg.split("/")[0]);
-  }
-
-  for (const basePkg of basePackages) {
     try {
-      const resolvedPath = projectRequire.resolve(basePkg);
-
-      let current = dirname(resolvedPath);
       let actualPkgDir: string | null = null;
 
-      while (current !== dirname(current)) {
-        try {
-          const pkgJsonPath = join(current, "package.json");
-          await fs.access(pkgJsonPath);
-          const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf8");
-          const pkgJson = JSON.parse(pkgJsonContent);
+      // Try multiple resolution strategies
+      try {
+        // Strategy 1: Use require.resolve for packages without strict exports
+        const resolvedPath = projectRequire.resolve(pkg);
+        let current = dirname(resolvedPath);
 
-          if (pkgJson.name === basePkg) {
-            actualPkgDir = current;
-            break;
+        // Walk up to find the package root directory
+        while (current !== dirname(current)) {
+          try {
+            const pkgJsonPath = join(current, "package.json");
+            await fs.access(pkgJsonPath);
+            const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf8");
+            const pkgJson = JSON.parse(pkgJsonContent);
+
+            if (pkgJson.name === pkg) {
+              actualPkgDir = current;
+              break;
+            }
+          } catch (_e) {
+            // Continue walking up directory tree
           }
-        } catch {}
 
-        if (
-          basename(current) === basePkg &&
-          basename(dirname(current)) === "node_modules"
-        ) {
-          actualPkgDir = current;
-          break;
+          current = dirname(current);
         }
 
-        current = dirname(current);
+        if (!actualPkgDir) {
+          actualPkgDir = dirname(resolvedPath);
+        }
+      } catch (_error) {
+        // Strategy 2: For preliquify packages in monorepo, use workspace packages
+        if (pkg.startsWith("@preliquify/")) {
+          const pkgName = pkg.replace("@preliquify/", "");
+          const workspacePkgDir = join(projectRoot, "packages", pkgName);
+          try {
+            await fs.access(join(workspacePkgDir, "package.json"));
+            actualPkgDir = workspacePkgDir;
+          } catch (_e) {
+            // Package not in workspace
+          }
+        }
+
+        // Strategy 3: Look in node_modules directly
+        if (!actualPkgDir) {
+          const nodeModulesPkgDir = join(projectRoot, "node_modules", pkg);
+          try {
+            await fs.access(join(nodeModulesPkgDir, "package.json"));
+            actualPkgDir = nodeModulesPkgDir;
+          } catch (_e) {
+            // Package not in node_modules
+          }
+        }
       }
 
       if (!actualPkgDir) {
-        actualPkgDir = dirname(resolvedPath);
+        throw new Error(`Could not find package directory for ${pkg}`);
       }
 
-      await createSymlink(actualPkgDir, tmpNodeModules, basePkg);
+      // For scoped packages, ensure the scope directory exists
+      if (pkg.startsWith("@")) {
+        const scope = pkg.split("/")[0];
+        const scopeDir = join(tmpNodeModules, scope);
+        await fs.mkdir(scopeDir, { recursive: true });
+      }
+
+      await createSymlink(actualPkgDir, tmpNodeModules, pkg);
+      if (verbose) {
+        console.log(`  ✓ Symlinked ${pkg} from ${actualPkgDir}`);
+      }
     } catch (error) {
-      // Silently continue if package symlink fails - non-critical
+      // Log errors for preliquify packages as they're critical
+      if (pkg.startsWith("@preliquify/")) {
+        console.warn(`⚠️  Failed to symlink ${pkg}:`, error);
+      }
     }
   }
 }
@@ -309,7 +442,8 @@ function applySuffixIfNeeded(
 
 export async function build(opts: BuildOptions) {
   const {
-    srcDir,
+    entryPoint: configEntryPoint,
+    srcDir: deprecatedSrcDir,
     outLiquidDir,
     outClientDir,
     watch,
@@ -318,25 +452,99 @@ export async function build(opts: BuildOptions) {
   } = opts;
   const errorReporter = createErrorReporter(verbose);
 
+  // Handle backwards compatibility and normalize entryPoint
+  let entryPoint: string | string[];
+
+  if (deprecatedSrcDir && !configEntryPoint) {
+    console.warn(
+      `⚠️  Warning: 'srcDir' is deprecated and will be removed in v2.0.0. Please use 'entryPoint' instead.\n` +
+        `   Change your config from:\n` +
+        `     srcDir: "${deprecatedSrcDir}"\n` +
+        `   To:\n` +
+        `     entryPoint: "${deprecatedSrcDir}"\n`
+    );
+    entryPoint = deprecatedSrcDir;
+  } else if (configEntryPoint) {
+    entryPoint = configEntryPoint;
+  } else {
+    throw new Error(
+      'Build configuration error: Either "entryPoint" or "srcDir" must be specified.\n' +
+        "Please add to your preliquify.config.ts:\n" +
+        '  entryPoint: "./src/snippets"  // Directory to scan\n' +
+        "Or:\n" +
+        '  entryPoint: ["./src/File1.tsx", "./src/File2.tsx"]  // Specific files'
+    );
+  }
+
+  // Normalize to array
+  const entryPoints = Array.isArray(entryPoint) ? entryPoint : [entryPoint];
+
+  // Scan for files using createLiquidSnippet
+  console.log("🔍 Scanning for Liquid snippets...");
   let entries: string[];
+
   try {
-    entries = await fg("**/*.tsx", {
-      cwd: srcDir,
-      absolute: true,
-      ignore: [],
-    });
+    entries = await scanForLiquidSnippets(entryPoints, verbose);
   } catch (error: any) {
     throw new FileSystemError(
-      `Failed to scan source directory: ${error.message}`,
-      srcDir,
+      `Failed to scan entry points: ${error.message}`,
+      entryPoints.join(", "),
       error
     );
   }
 
   if (entries.length === 0) {
-    console.warn(`⚠️  No .tsx files found in ${srcDir}`);
+    const entryList = entryPoints.map((ep) => `   - ${ep}`).join("\n");
+    console.warn(
+      `\n⚠️  No files with 'createLiquidSnippet' found in entry points:\n${entryList}\n\n` +
+        `💡 Tip: Only files that call createLiquidSnippet() are compiled to .liquid files.\n` +
+        `   Other files are treated as library components and bundled into snippets.\n\n` +
+        `   Example:\n` +
+        `     export default createLiquidSnippet(MyComponent, { ... });`
+    );
     return;
   }
+
+  // Validate: Warn if config specifies files that don't use createLiquidSnippet
+  if (Array.isArray(configEntryPoint)) {
+    const configFiles = new Set(
+      configEntryPoint
+        .filter((ep) => ep.endsWith(".tsx"))
+        .map((ep) => resolve(ep))
+    );
+    const actualFiles = new Set(entries);
+
+    const missingSnippets = [...configFiles].filter((f) => !actualFiles.has(f));
+    const unexpectedSnippets = [...actualFiles].filter(
+      (f) => !configFiles.has(f)
+    );
+
+    if (missingSnippets.length > 0) {
+      const missingList = missingSnippets
+        .map((f) => `   - ${basename(f)}`)
+        .join("\n");
+      console.warn(
+        `\n⚠️  Configuration Validation Warning:\n` +
+          `   The following files are listed in entryPoint but don't use createLiquidSnippet:\n${missingList}\n` +
+          `   These files will NOT be compiled to .liquid files.\n` +
+          `   (Scan results override config - this is just a lint warning)`
+      );
+    }
+
+    if (unexpectedSnippets.length > 0 && configFiles.size > 0) {
+      const unexpectedList = unexpectedSnippets
+        .map((f) => `   - ${basename(f)}`)
+        .join("\n");
+      console.warn(
+        `\n⚠️  Configuration Validation Warning:\n` +
+          `   Found files with createLiquidSnippet that aren't listed in entryPoint:\n${unexpectedList}\n` +
+          `   These WILL be compiled (scan finds all snippets).\n` +
+          `   Consider adding them to your config for better documentation.`
+      );
+    }
+  }
+
+  console.log(`\n✅ Found ${entries.length} snippet(s) to compile\n`);
 
   try {
     await fs.mkdir(outLiquidDir, { recursive: true });
@@ -351,15 +559,23 @@ export async function build(opts: BuildOptions) {
 
   const tmpDir = await mkdtemp(join(tmpdir(), "preliquify-"));
 
-  const projectRoot = await findProjectRoot(srcDir);
+  // Find project root from first entry point
+  const firstEntryDir =
+    entries.length > 0 ? dirname(entries[0]) : entryPoints[0];
+  const projectRoot = await findProjectRoot(firstEntryDir);
   if (!projectRoot) {
     throw new FileSystemError(
       "Could not find project root (node_modules directory). Make sure you're running PreLiquify from a project with node_modules.",
-      srcDir
+      firstEntryDir
     );
   }
 
-  await setupTempNodeModules(projectRoot, tmpDir, [...EXTERNAL_PACKAGES]);
+  await setupTempNodeModules(
+    projectRoot,
+    tmpDir,
+    [...EXTERNAL_PACKAGES],
+    verbose
+  );
 
   const originalNodePath = process.env.NODE_PATH;
   const projectNodeModules = join(projectRoot, "node_modules");
@@ -375,7 +591,7 @@ export async function build(opts: BuildOptions) {
     const processBatch = async (batch: string[]) => {
       return Promise.all(
         batch.map(async (file) => {
-          const tmpOut = join(tmpDir, basename(file) + ".mjs");
+          const tmpOut = join(tmpDir, `${basename(file)}.mjs`);
 
           try {
             const code = await fs.readFile(file, "utf8");
@@ -482,9 +698,101 @@ export async function build(opts: BuildOptions) {
         });
 
         console.log(`✅ Generated client runtime: ${runtimeOutPath}`);
-      } catch (error) {
+      } catch (_error) {
         console.warn("⚠️  Failed to build enhanced runtime, using fallback");
         await fs.writeFile(runtimeOutPath, FALLBACK_RUNTIME, "utf8");
+      }
+
+      // Generate client bundles for each component with auto-registration
+      const generateClientBundles = opts.generateClientBundles !== false; // Default true
+
+      if (generateClientBundles) {
+        console.log(`\n📦 Generating client component bundles...`);
+
+        let bundleCount = 0;
+        for (const file of entries) {
+          try {
+            const componentName = basename(file, ".tsx");
+            const bundleFilename = applySuffixIfNeeded(
+              `${componentName}.bundle.js`,
+              suffixDistFiles
+            );
+            const bundleOutPath = join(outClientDir, bundleFilename);
+
+            // Create a wrapper file with auto-registration
+            const wrapperContent = `
+import { default as Snippet } from '${file}';
+
+// Extract the original component from the snippet wrapper
+// createLiquidSnippet attaches the component to __preliquifyComponent
+const Component = Snippet.__preliquifyComponent || Snippet;
+const componentName = Snippet.__preliquifyComponentName || '${componentName}';
+
+// Auto-registration with retry logic
+(function() {
+  let registered = false;
+  
+  function registerComponent() {
+    if (registered) return;
+    
+    if (typeof window !== 'undefined' && window.__PRELIQUIFY__) {
+      if (window.__PRELIQUIFY__.register) {
+        window.__PRELIQUIFY__.register(componentName, Component);
+        registered = true;
+        if (${verbose}) {
+          console.log('[__PRELIQUIFY__] Registered:', componentName);
+        }
+        return;
+      }
+    }
+    
+    // Runtime not loaded yet, retry
+    setTimeout(registerComponent, 10);
+  }
+  
+  // Start registration when script loads
+  if (typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', registerComponent);
+    } else {
+      registerComponent();
+    }
+  }
+})();
+`;
+
+            const wrapperPath = join(tmpDir, `${componentName}-wrapper.js`);
+            await fs.writeFile(wrapperPath, wrapperContent, "utf8");
+
+            // Bundle the component with auto-registration
+            // Bundle all dependencies including @preliquify and preact
+            // This creates self-contained bundles that work in browser
+            await esbuild({
+              entryPoints: [wrapperPath],
+              bundle: true,
+              outfile: bundleOutPath,
+              format: "iife",
+              target: "es2020",
+              minify: opts.minify !== false,
+              external: [], // Bundle everything for browser
+              platform: "browser",
+              jsx: "automatic",
+              jsxImportSource: opts.jsxImportSource || "preact",
+              globalName: `__PreliquifyBundle_${componentName}`,
+            });
+
+            bundleCount++;
+            if (verbose) {
+              console.log(`  ✓ ${bundleFilename}`);
+            }
+          } catch (error) {
+            console.warn(`⚠️  Failed to bundle ${basename(file)}:`, error);
+          }
+        }
+
+        if (bundleCount > 0) {
+          console.log(`✅ Generated ${bundleCount} client bundle(s)`);
+        }
       }
     }
 
@@ -506,7 +814,9 @@ export async function build(opts: BuildOptions) {
 
     try {
       await fs.rm(tmpDir, { recursive: true, force: true });
-    } catch {}
+    } catch (_error) {
+      // Ignore cleanup errors
+    }
   }
 }
 
@@ -522,12 +832,12 @@ async function startWatchMode(
 
   const watcher = chokidar.watch("**/*.tsx", {
     cwd: srcDir,
-    ignored: /(^|[\/\\])\../, // ignore dotfiles
+    ignored: /(^|[/\\])\../, // ignore dotfiles
     persistent: true,
     ignoreInitial: true,
   });
 
-  let buildTimeout: NodeJS.Timeout | null = null;
+  let buildTimeout: ReturnType<typeof setTimeout> | null = null;
   const debouncedBuild = async (path: string, event: string) => {
     if (buildTimeout) clearTimeout(buildTimeout);
 
@@ -537,7 +847,7 @@ async function startWatchMode(
 
       try {
         await build({ ...opts, watch: false });
-      } catch (error) {
+      } catch (_error) {
         if (verbose) {
           console.error("\n❌ Build failed, waiting for changes...");
         }
@@ -561,7 +871,9 @@ async function startWatchMode(
       try {
         await fs.unlink(liquidFile);
         console.log(`   Deleted: ${liquidFile}`);
-      } catch (error) {}
+      } catch (_error) {
+        // File might not exist
+      }
     })
     .on("error", (error) => {
       console.error("\n❌ Watcher error:", error);

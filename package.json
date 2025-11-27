@@ -25,10 +25,11 @@
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
   "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
+    "npm": "please-use-pnpm",
+    "node": "20.*",
+    "pnpm": "^9.5.*"
   },
-  "version": "1.1.5",
+  "version": "1.1.14",
   "workspaces": [
     "packages/*",
     "examples/*"

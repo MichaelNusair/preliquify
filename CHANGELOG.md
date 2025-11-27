@@ -1,53 +1,28 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-### Added
-- Comprehensive ESLint configuration
-- Prettier configuration
-- EditorConfig for consistent coding styles
-- Enhanced package.json metadata (keywords, engines, descriptions)
-- CONTRIBUTING.md with development guidelines
-- CHANGELOG.md for tracking changes
-- Better error messages for Liquid expression errors
-
-### Changed
-- Updated all package.json files with better descriptions and keywords
-- Improved npm discoverability with proper metadata
+## [1.1.14] - 2024-11-05
 
 ### Fixed
-- Various type safety improvements
+- Global name mismatch: Runtime and bundles now both use `window.__PRELIQUIFY__`
+- Self-contained bundles: All dependencies bundled (no `require()` errors in browser)
 
-## [1.0.0] - Previous Release
+## [1.1.11] - 2024-11-05
 
-### Features
-- CLI tool for building Liquid snippets from React/Preact components
-- Core primitives: `Conditional`, `For`, `Choose`, `Hydrate`
-- Liquid expression builder with `$` helper
-- `createLiquidSnippet` for mapping props to Liquid variables
-- SSR compatibility with browser API polyfills
-- Watch mode for development
-- Client-side hydration runtime
-- TypeScript support
-- Comprehensive error handling
+### Added
+- Automatic client bundle generation (`.bundle.js` files)
+- Auto-registration code in bundles
+- Smart compilation (only files with `createLiquidSnippet`)
+- Entry point scanning and validation
+- Render function support in `<For />` component
+- Proxy-based property access (auto-generates Liquid expressions)
 
-### Packages
-- `@preliquify/cli`: Command-line interface
-- `@preliquify/compiler`: Core compilation logic
-- `@preliquify/core`: Primitives and utilities
-- `@preliquify/preact`: Preact bindings
+### Changed
+- `srcDir` deprecated, use `entryPoint`
+- Scan results are source of truth
+- Build shows snippet vs library counts
 
-## Release Categories
-
-- **Added**: New features
-- **Changed**: Changes to existing functionality
-- **Deprecated**: Soon-to-be removed features
-- **Removed**: Removed features
-- **Fixed**: Bug fixes
-- **Security**: Vulnerability fixes
-
+### Fixed
+- `<For />` loops generate correctly
+- `TargetProvider` context isolation
+- `createLiquidSnippet` renders during compilation
+- Runtime detection includes `createLiquidSnippet`

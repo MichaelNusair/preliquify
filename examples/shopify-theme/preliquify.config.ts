@@ -1,7 +1,7 @@
 import type { PreliquifyConfig } from "@preliquify/cli";
 
 const config: PreliquifyConfig = {
-  srcDir: "src/snippets",
+  entryPoint: "src/snippets", // Only files with createLiquidSnippet are compiled
   outLiquidDir: "snippets",
   outClientDir: "assets",
 };

@@ -106,9 +106,14 @@ interface CreateLiquidSnippetOptions {
  * ```
  *
  * The component will:
- * 1. Render the placeholder at build time to avoid SSR errors
- * 2. Hydrate on the client with the actual props
- * 3. Replace the placeholder with the fully interactive component
+ * 1. Render the actual component at build time so Liquid primitives (For, Conditional, etc.)
+ *    can generate their Liquid output
+ * 2. Wrap the component in hydration metadata for client-side hydration
+ * 3. Hydrate on the client with the actual props, replacing the server-rendered content
+ *
+ * Note: Components that use JavaScript methods (.map(), .filter(), etc.) on props that are
+ * Liquid expressions will fail at build time. Use Preliquify primitives (For, Conditional)
+ * instead for Liquid data.
  */
 export function createLiquidSnippet<P extends Record<string, unknown>>(
   Component: ComponentType<P>,
@@ -126,21 +131,24 @@ export function createLiquidSnippet<P extends Record<string, unknown>>(
       .toLowerCase()
       .replace(/([A-Z])/g, "-$1")
       .replace(/^-/, "");
-  const placeholder = options.placeholder || <div>Loading...</div>;
 
   function ComponentSSR(props: P) {
     const propEntries = Object.entries(propMapping);
 
     if (propEntries.length === 0) {
-      return (
-        <div
-          data-preliq-island={componentName}
-          data-preliq-id={id}
-          data-preliq-props={rawLiquid("{}")}
-        >
-          {placeholder}
-        </div>
-      );
+      const target = useTarget();
+      if (target === "liquid") {
+        return (
+          <div
+            data-preliq-island={componentName}
+            data-preliq-id={id}
+            data-preliq-props={rawLiquid("{}")}
+          >
+            <Component {...props} />
+          </div>
+        );
+      }
+      return <Component {...props} />;
     }
 
     const firstProp = propEntries[0];
@@ -198,9 +206,12 @@ export function createLiquidSnippet<P extends Record<string, unknown>>(
 
     liquidExpr += `{% assign _json = _json | append: '}' %}{{ _json }}`;
 
-    // At build time (liquid target), always render placeholder to avoid errors
-    // Components that use .map() or other JS methods will fail with Liquid expression strings
-    // Client-side hydration will replace the placeholder with the actual component
+    // At build time (liquid target), render the actual component so that
+    // Liquid primitives (For, Conditional, etc.) can generate their Liquid output.
+    // The component is wrapped in hydration metadata for client-side hydration.
+    // Components that use JavaScript methods (.map(), etc.) on Liquid expression
+    // props will fail at build time - this is expected and documented.
+    // Use Preliquify primitives (For, Conditional) instead for Liquid data.
     const target = useTarget();
     if (target === "liquid") {
       return (
@@ -210,7 +221,7 @@ export function createLiquidSnippet<P extends Record<string, unknown>>(
             data-preliq-props=""
             dangerouslySetInnerHTML={{ __html: rawLiquid(liquidExpr) }}
           />
-          {placeholder}
+          <Component {...props} />
         </div>
       );
     }
@@ -246,6 +257,11 @@ export function createLiquidSnippet<P extends Record<string, unknown>>(
   }
 
   LiquidSnippet.displayName = `${componentName}Snippet`;
+
+  // Attach the original component for client-side bundling
+  // This allows the bundler to access the raw component for hydration
+  (LiquidSnippet as any).__preliquifyComponent = Component;
+  (LiquidSnippet as any).__preliquifyComponentName = componentName;
 
   return LiquidSnippet;
 }
