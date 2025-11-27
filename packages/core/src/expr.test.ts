@@ -59,13 +59,13 @@ describe("Expression System ($)", () => {
   describe("$.not", () => {
     it("should negate boolean expressions", () => {
       const expr = $.not($.lit(true));
-      expect(expr.toLiquid()).toBe("(not true)");
+      expect(expr.toLiquid()).toBe("not true");
       expect(expr.toClient()({})).toBe(false);
     });
 
     it("should work with variable expressions", () => {
       const expr = $.not($.var("isActive"));
-      expect(expr.toLiquid()).toBe("(not isActive)");
+      expect(expr.toLiquid()).toBe("not isActive");
       expect(expr.toClient()({ isActive: true })).toBe(false);
       expect(expr.toClient()({ isActive: false })).toBe(true);
     });
@@ -74,13 +74,13 @@ describe("Expression System ($)", () => {
   describe("$.and", () => {
     it("should create AND expressions", () => {
       const expr = $.and($.lit(true), $.lit(false));
-      expect(expr.toLiquid()).toBe("(true) and (false)");
+      expect(expr.toLiquid()).toBe("true and false");
       expect(expr.toClient()({})).toBe(false);
     });
 
     it("should handle multiple conditions correctly", () => {
       const expr = $.and($.var("a"), $.var("b"));
-      expect(expr.toLiquid()).toBe("(a) and (b)");
+      expect(expr.toLiquid()).toBe("a and b");
       expect(expr.toClient()({ a: true, b: true })).toBe(true);
       expect(expr.toClient()({ a: true, b: false })).toBe(false);
       expect(expr.toClient()({ a: false, b: true })).toBe(false);
@@ -90,13 +90,13 @@ describe("Expression System ($)", () => {
   describe("$.or", () => {
     it("should create OR expressions", () => {
       const expr = $.or($.lit(true), $.lit(false));
-      expect(expr.toLiquid()).toBe("(true) or (false)");
+      expect(expr.toLiquid()).toBe("true or false");
       expect(expr.toClient()({})).toBe(true);
     });
 
     it("should handle multiple conditions correctly", () => {
       const expr = $.or($.var("a"), $.var("b"));
-      expect(expr.toLiquid()).toBe("(a) or (b)");
+      expect(expr.toLiquid()).toBe("a or b");
       expect(expr.toClient()({ a: true, b: false })).toBe(true);
       expect(expr.toClient()({ a: false, b: true })).toBe(true);
       expect(expr.toClient()({ a: false, b: false })).toBe(false);

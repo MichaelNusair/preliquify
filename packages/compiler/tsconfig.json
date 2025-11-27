@@ -3,6 +3,13 @@
   "include": ["src"],
   "exclude": ["src/**/*.test.*", "src/**/*.spec.*"],
   "compilerOptions": {
-    "outDir": "dist"
-  }
+    "outDir": "dist",
+    "composite": true,
+    "baseUrl": ".",
+    "rootDir": "src",
+    "paths": {
+      "@preliquify/core": ["../core/src"]
+    }
+  },
+  "references": [{ "path": "../core" }]
 }

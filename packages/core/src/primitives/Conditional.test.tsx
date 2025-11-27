@@ -36,7 +36,7 @@ describe("Conditional", () => {
       );
 
       expect(result).toBe(
-        "{% if (product.available) and (product.type == &quot;shirt&quot;) %}<div>Available shirt</div>{% endif %}"
+        "{% if product.available and product.type == 'shirt' %}<div>Available shirt</div>{% endif %}"
       );
     });
 

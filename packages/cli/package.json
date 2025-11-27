@@ -24,9 +24,9 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "version": "1.3.30",
+  "version": "1.3.39",
   "bin": {
-    "preliquify": "dist/cli/src/index.js"
+    "preliquify": "dist/index.js"
   },
   "type": "module",
   "main": "dist/types.js",

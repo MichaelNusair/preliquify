@@ -44,6 +44,18 @@ export interface ForProps<T> {
 }
 
 /**
+ * Component props for case/switch rendering
+ */
+export interface ChooseProps<T = string | number> {
+  /** Expression that evaluates to the value to match against */
+  value: Expr<T>;
+  /** Object mapping case values to JSX elements */
+  cases: Record<string | number, JSX.Element>;
+  /** Optional default case to render if no case matches */
+  default?: JSX.Element;
+}
+
+/**
  * Component props for hydration islands
  *
  * Islands are interactive components that get hydrated on the client-side
@@ -130,7 +142,11 @@ export interface ExpressionBuilder {
   // Logical operators
   not(expr: Expr<boolean>): Expr<boolean>;
   and(a: Expr<boolean>, b: Expr<boolean>): Expr<boolean>;
-  or(a: Expr<boolean>, b: Expr<boolean>): Expr<boolean>;
+  or(
+    a: Expr<boolean>,
+    b: Expr<boolean>,
+    ...rest: Expr<boolean>[]
+  ): Expr<boolean>;
 
   // Comparison operators
   eq<T>(a: Expr<T>, b: Expr<T>): Expr<boolean>;

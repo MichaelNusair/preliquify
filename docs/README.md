@@ -40,6 +40,14 @@ $.contains<T>(collection: Expr<T[]>, item: Expr<T>): Expr<boolean>
 <Target liquid={JSX.Element} client={JSX.Element} />
 ```
 
+## Utilities
+
+```typescript
+jsonParse<T>(jsonString: string | undefined | null, defaultValue: T): T
+```
+
+Safely parses JSON strings, handling Liquid expression strings at build time. Returns the default value at build time and parses the actual JSON at runtime.
+
 ## Hooks
 
 ```typescript

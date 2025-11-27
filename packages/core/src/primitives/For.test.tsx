@@ -156,5 +156,49 @@ describe("For", () => {
         "{% for item in items %}<dt>{{ item.key }}</dt><dd>{{ item.value }}</dd>{% endfor %}"
       );
     });
+
+    it("should handle $.var() expressions inside For children", () => {
+      // This test ensures that using $.var() inside For children doesn't cause
+      // "Cannot convert object to primitive value" errors
+      const result = renderToString(
+        <TargetProvider value="liquid">
+          <For each={$.var("products")} as="product">
+            <div>
+              <img
+                src={String($.var("product.image"))}
+                alt={String($.var("product.title"))}
+              />
+              <h3>{String($.var("product.title"))}</h3>
+            </div>
+          </For>
+        </TargetProvider>
+      );
+
+      // The Expr objects should be converted to their Liquid string representation
+      expect(result).toContain("product.image");
+      expect(result).toContain("product.title");
+      expect(result).toContain("{% for product in products %}");
+      expect(result).toContain("{% endfor %}");
+    });
+
+    it("should handle $.var() in render function children", () => {
+      // Test that $.var() works in render function children
+      const result = renderToString(
+        <TargetProvider value="liquid">
+          <For each={$.var("items")} as="item">
+            {(item) => (
+              <div>
+                <span>{String($.var("item.src"))}</span>
+                <span>{String($.var("item.alt"))}</span>
+              </div>
+            )}
+          </For>
+        </TargetProvider>
+      );
+
+      expect(result).toContain("item.src");
+      expect(result).toContain("item.alt");
+      expect(result).toContain("{% for item in items %}");
+    });
   });
 });
