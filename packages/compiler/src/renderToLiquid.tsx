@@ -2,8 +2,10 @@ import { h } from "preact";
 import renderToString from "preact-render-to-string";
 import { TargetProvider } from "@preliquify/core";
 
+import type { ComponentType } from "preact";
+
 export async function renderComponentToLiquid(
-  mod: any,
+  mod: { default?: ComponentType<any>; Component?: ComponentType<any> },
   filePath?: string
 ): Promise<string> {
   const Comp = mod.default || mod.Component || null;

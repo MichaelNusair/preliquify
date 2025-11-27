@@ -10,7 +10,7 @@
   "bugs": {
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
-  "version": "0.1.16",
+  "version": "0.1.25",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -29,11 +29,15 @@
   "dependencies": {
     "esbuild": "^0.24.0",
     "fast-glob": "^3.3.2",
-    "preact": "^10.22.0",
+    "chokidar": "^3.5.3",
+    "preact": "^10.27.2",
     "preact-render-to-string": "^6.5.11",
     "@preliquify/core": "workspace:*"
   },
   "peerDependencies": {
     "@preliquify/preact": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.6"
   }
 }

@@ -1,11 +1,8 @@
 import { h, Fragment } from "preact";
 import { useTarget } from "../runtime.js";
-import type { Expr } from "../expr.js";
+import type { ConditionalProps } from "../types.js";
 
-export function Conditional(props: {
-  when: Expr<boolean>;
-  children: h.JSX.Element;
-}) {
+export function Conditional(props: ConditionalProps) {
   const target = useTarget();
   if (target === "liquid") {
     return (

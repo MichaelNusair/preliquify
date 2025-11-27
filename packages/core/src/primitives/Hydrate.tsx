@@ -1,12 +1,7 @@
 import { h } from "preact";
 import { useTarget } from "../runtime.js";
 import { liquidJson } from "../liquid.js";
-
-type HydrateProps = {
-  id: string; // unique id for the island instance
-  component: string; // component name for client loader
-  props?: Record<string, any>;
-};
+import type { HydrateProps } from "../types.js";
 
 export function Hydrate({ id, component, props = {} }: HydrateProps) {
   const target = useTarget();
