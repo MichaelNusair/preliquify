@@ -10,7 +10,7 @@
   "bugs": {
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
-  "version": "0.1.9",
+  "version": "0.1.16",
   "workspaces": [
     "packages/*",
     "examples/*"
@@ -21,7 +21,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "lint:fix": "eslint --fix .",
-    "publish": "node scripts/publish.mjs"
+    "publish-all-packages": "node scripts/publish.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",

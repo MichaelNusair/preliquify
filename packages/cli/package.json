@@ -10,7 +10,7 @@
   "bugs": {
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
-  "version": "0.1.9",
+  "version": "0.1.16",
   "bin": {
     "preliquify": "dist/index.js"
   },
@@ -23,7 +23,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@preliquify/compiler": "workspace:*"
+    "@preliquify/compiler": "workspace:*",
+    "esbuild": "^0.24.0"
   },
   "peerDependencies": {}
 }
