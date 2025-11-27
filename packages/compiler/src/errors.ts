@@ -64,14 +64,30 @@ export class HydrationError extends PreliquifyError {
 export function formatError(error: Error): string {
   if (error instanceof CompilationError) {
     const lines = [`\n❌ Compilation Error in ${error.file}`];
-    lines.push(`   ${error.message}`);
+    
+    // If this is a Liquid expression error, format it specially
+    if (error.details?.type === "liquid_expression_error") {
+      lines.push(`   ${error.message.split('\n')[0]}`); // First line only
+      lines.push(`\n   ${error.details.hint || ""}`);
+      
+      // Extract the helpful message from the error
+      const messageParts = error.message.split('\n\n');
+      if (messageParts.length > 1) {
+        lines.push("");
+        messageParts.slice(1).forEach((part) => {
+          lines.push(`   ${part}`);
+        });
+      }
+    } else {
+      lines.push(`   ${error.message}`);
+    }
 
-    if (error.originalError && error.originalError.stack) {
+    if (error.originalError && error.originalError.stack && error.details?.type !== "liquid_expression_error") {
       const stackLines = error.originalError.stack.split("\n").slice(1, 4);
       stackLines.forEach((line) => lines.push(`   ${line.trim()}`));
     }
 
-    if (error.details) {
+    if (error.details && error.details.type !== "liquid_expression_error") {
       lines.push(`\n   Details: ${JSON.stringify(error.details, null, 2)}`);
     }
 

@@ -3,14 +3,28 @@
   "private": false,
   "license": "MIT",
   "author": "Preliquify",
+  "description": "Core primitives and utilities for building Liquid templates with JSX",
+  "homepage": "https://github.com/MichaelNusair/preliquify#readme",
+  "keywords": [
+    "preliquify",
+    "core",
+    "liquid",
+    "primitives",
+    "expressions",
+    "jsx"
+  ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/MichaelNusair/preliquify"
+    "url": "https://github.com/MichaelNusair/preliquify",
+    "directory": "packages/core"
   },
   "bugs": {
     "url": "https://github.com/MichaelNusair/preliquify/issues"
   },
-  "version": "0.1.44",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
