@@ -25,14 +25,14 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "version": "1.1.14",
+  "version": "1.3.30",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/compiler/src/index.js",
+  "types": "dist/compiler/src/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/compiler/src/index.js",
+      "types": "./dist/compiler/src/index.d.ts"
     }
   },
   "scripts": {
@@ -47,7 +47,10 @@
     "chokidar": "^3.5.3",
     "preact": "^10.27.2",
     "preact-render-to-string": "^6.5.11",
-    "@preliquify/core": "workspace:*"
+    "@preliquify/core": "workspace:*",
+    "tailwindcss": "^3.4.1",
+    "postcss": "^8.4.35",
+    "autoprefixer": "^10.4.17"
   },
   "peerDependencies": {
     "@preliquify/preact": "workspace:*"

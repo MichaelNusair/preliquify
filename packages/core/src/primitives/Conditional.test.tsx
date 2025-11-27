@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { h } from "preact";
 import { render } from "@testing-library/preact";
 import renderToString from "preact-render-to-string";
 import { Conditional } from "./Conditional";

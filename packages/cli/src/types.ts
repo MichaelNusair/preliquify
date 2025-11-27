@@ -57,4 +57,21 @@ export interface PreliquifyConfig {
    * @default true
    */
   minify?: boolean;
+
+  /**
+   * Enable Tailwind CSS processing
+   * @default false
+   */
+  tailwind?: boolean | {
+    /**
+     * Path to Tailwind config file
+     * @default "tailwind.config.js" or "tailwind.config.ts"
+     */
+    config?: string;
+    /**
+     * Path to PostCSS config file
+     * @default "postcss.config.js" or "postcss.config.ts"
+     */
+    postcssConfig?: string;
+  };
 }

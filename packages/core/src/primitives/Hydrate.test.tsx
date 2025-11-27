@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { h } from "preact";
 import renderToString from "preact-render-to-string";
 import { Hydrate } from "./Hydrate";
 import { TargetProvider } from "../runtime";

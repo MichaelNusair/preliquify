@@ -17,8 +17,7 @@ yarn add -D @preliquify/cli
 ## Usage
 
 ```bash
-npx preliquify build
+npx @preliquify/cli build
 ```
 
 For complete documentation, examples, and guides, please see the [main repository](https://github.com/MichaelNusair/preliquify).
-

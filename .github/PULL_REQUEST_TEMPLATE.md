@@ -24,9 +24,9 @@ Closes #
 
 <!-- List the main changes made in this PR -->
 
-- 
-- 
-- 
+-
+-
+-
 
 ## Testing
 
@@ -40,9 +40,9 @@ Closes #
 
 <!-- Provide steps for reviewers to test your changes -->
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ## Checklist
 
@@ -55,7 +55,6 @@ Closes #
 - [ ] My changes generate no new warnings or errors
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
-- [ ] I have updated the CHANGELOG.md
 
 ## Screenshots (if applicable)
 
@@ -64,4 +63,3 @@ Closes #
 ## Additional Notes
 
 <!-- Any additional information or context about the PR -->
-

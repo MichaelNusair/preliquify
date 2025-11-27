@@ -25,6 +25,7 @@ import {
   ESBUILD_RUNTIME_CONFIG,
   FALLBACK_RUNTIME,
 } from "./constants.js";
+import { processCSS } from "./css-processor.js";
 
 /**
  * Detects if a file uses createLiquidSnippet by scanning its content
@@ -458,10 +459,10 @@ export async function build(opts: BuildOptions) {
   if (deprecatedSrcDir && !configEntryPoint) {
     console.warn(
       `⚠️  Warning: 'srcDir' is deprecated and will be removed in v2.0.0. Please use 'entryPoint' instead.\n` +
-        `   Change your config from:\n` +
-        `     srcDir: "${deprecatedSrcDir}"\n` +
-        `   To:\n` +
-        `     entryPoint: "${deprecatedSrcDir}"\n`
+      `   Change your config from:\n` +
+      `     srcDir: "${deprecatedSrcDir}"\n` +
+      `   To:\n` +
+      `     entryPoint: "${deprecatedSrcDir}"\n`
     );
     entryPoint = deprecatedSrcDir;
   } else if (configEntryPoint) {
@@ -469,10 +470,10 @@ export async function build(opts: BuildOptions) {
   } else {
     throw new Error(
       'Build configuration error: Either "entryPoint" or "srcDir" must be specified.\n' +
-        "Please add to your preliquify.config.ts:\n" +
-        '  entryPoint: "./src/snippets"  // Directory to scan\n' +
-        "Or:\n" +
-        '  entryPoint: ["./src/File1.tsx", "./src/File2.tsx"]  // Specific files'
+      "Please add to your preliquify.config.ts:\n" +
+      '  entryPoint: "./src/snippets"  // Directory to scan\n' +
+      "Or:\n" +
+      '  entryPoint: ["./src/File1.tsx", "./src/File2.tsx"]  // Specific files'
     );
   }
 
@@ -497,10 +498,10 @@ export async function build(opts: BuildOptions) {
     const entryList = entryPoints.map((ep) => `   - ${ep}`).join("\n");
     console.warn(
       `\n⚠️  No files with 'createLiquidSnippet' found in entry points:\n${entryList}\n\n` +
-        `💡 Tip: Only files that call createLiquidSnippet() are compiled to .liquid files.\n` +
-        `   Other files are treated as library components and bundled into snippets.\n\n` +
-        `   Example:\n` +
-        `     export default createLiquidSnippet(MyComponent, { ... });`
+      `💡 Tip: Only files that call createLiquidSnippet() are compiled to .liquid files.\n` +
+      `   Other files are treated as library components and bundled into snippets.\n\n` +
+      `   Example:\n` +
+      `     export default createLiquidSnippet(MyComponent, { ... });`
     );
     return;
   }
@@ -525,9 +526,9 @@ export async function build(opts: BuildOptions) {
         .join("\n");
       console.warn(
         `\n⚠️  Configuration Validation Warning:\n` +
-          `   The following files are listed in entryPoint but don't use createLiquidSnippet:\n${missingList}\n` +
-          `   These files will NOT be compiled to .liquid files.\n` +
-          `   (Scan results override config - this is just a lint warning)`
+        `   The following files are listed in entryPoint but don't use createLiquidSnippet:\n${missingList}\n` +
+        `   These files will NOT be compiled to .liquid files.\n` +
+        `   (Scan results override config - this is just a lint warning)`
       );
     }
 
@@ -537,9 +538,9 @@ export async function build(opts: BuildOptions) {
         .join("\n");
       console.warn(
         `\n⚠️  Configuration Validation Warning:\n` +
-          `   Found files with createLiquidSnippet that aren't listed in entryPoint:\n${unexpectedList}\n` +
-          `   These WILL be compiled (scan finds all snippets).\n` +
-          `   Consider adding them to your config for better documentation.`
+        `   Found files with createLiquidSnippet that aren't listed in entryPoint:\n${unexpectedList}\n` +
+        `   These WILL be compiled (scan finds all snippets).\n` +
+        `   Consider adding them to your config for better documentation.`
       );
     }
   }
@@ -568,6 +569,63 @@ export async function build(opts: BuildOptions) {
       "Could not find project root (node_modules directory). Make sure you're running PreLiquify from a project with node_modules.",
       firstEntryDir
     );
+  }
+
+  // Extract Tailwind config
+  const tailwindEnabled = !!opts.tailwind;
+
+  // Process CSS files if Tailwind is enabled
+  if (tailwindEnabled) {
+    console.log("\n🎨 Processing CSS files...");
+    try {
+      // Look for common CSS entry points
+      const cssEntryPoints = [
+        join(projectRoot, "src", "input.css"),
+        join(projectRoot, "src", "styles.css"),
+        join(projectRoot, "src", "main.css"),
+        join(projectRoot, "src", "app.css"),
+        join(projectRoot, "input.css"),
+        join(projectRoot, "styles.css"),
+      ];
+
+      let processedAny = false;
+      for (const cssPath of cssEntryPoints) {
+        try {
+          const cssContent = await fs.readFile(cssPath, "utf8");
+          const processedCSS = await processCSS(
+            cssContent,
+            cssPath,
+            opts.tailwind,
+            projectRoot
+          );
+
+          // Write to assets directory
+          const cssFilename = applySuffixIfNeeded(
+            basename(cssPath),
+            suffixDistFiles
+          );
+          const cssOutPath = join(outClientDir, cssFilename);
+          await fs.writeFile(cssOutPath, processedCSS, "utf8");
+          processedAny = true;
+
+          if (verbose) {
+            console.log(`  ✓ ${cssFilename}`);
+          } else {
+            console.log(`  ✓ Processed ${basename(cssPath)}`);
+          }
+        } catch {
+          // File doesn't exist, skip
+        }
+      }
+
+      if (!processedAny && verbose) {
+        console.log(
+          "  ℹ No CSS entry file found. Create src/input.css with @tailwind directives."
+        );
+      }
+    } catch (error: any) {
+      console.warn(`⚠️  CSS processing error: ${error.message}`);
+    }
   }
 
   await setupTempNodeModules(
@@ -606,6 +664,14 @@ export async function build(opts: BuildOptions) {
                 js: createBrowserPolyfills(),
               },
               ...ESBUILD_COMPONENT_CONFIG,
+              // Enable CSS loader if Tailwind is enabled
+              ...(tailwindEnabled
+                ? {
+                  loader: {
+                    ".css": "css",
+                  },
+                }
+                : {}),
             });
 
             const polyfillCode = createBrowserPolyfills();
@@ -720,15 +786,25 @@ export async function build(opts: BuildOptions) {
             const bundleOutPath = join(outClientDir, bundleFilename);
 
             // Create a wrapper file with auto-registration
+            // Use string literal for component name to prevent minification issues
             const wrapperContent = `
 import { default as Snippet } from '${file}';
+import { h } from 'preact';
+import { render } from 'preact';
+
+// Expose Preact globally for runtime (must be before registration)
+if (typeof window !== 'undefined') {
+  window.preact = { h, render };
+}
 
 // Extract the original component from the snippet wrapper
 // createLiquidSnippet attaches the component to __preliquifyComponent
 const Component = Snippet.__preliquifyComponent || Snippet;
+// Get component name but use string literal in registration to prevent minification
 const componentName = Snippet.__preliquifyComponentName || '${componentName}';
 
 // Auto-registration with retry logic
+// Use string literal directly to prevent minifier from mangling the name
 (function() {
   let registered = false;
   
@@ -737,10 +813,17 @@ const componentName = Snippet.__preliquifyComponentName || '${componentName}';
     
     if (typeof window !== 'undefined' && window.__PRELIQUIFY__) {
       if (window.__PRELIQUIFY__.register) {
-        window.__PRELIQUIFY__.register(componentName, Component);
+        // Use string literal directly - prevents minifier from using variable name
+        window.__PRELIQUIFY__.register('${componentName}', Component);
         registered = true;
         if (${verbose}) {
-          console.log('[__PRELIQUIFY__] Registered:', componentName);
+          console.log('[__PRELIQUIFY__] Registered:', '${componentName}');
+        }
+        // Trigger hydration after registration (handles defer script timing)
+        // The register() function will trigger hydration, but this ensures it works
+        // even if runtime hasn't loaded yet (hydration will be triggered when runtime loads)
+        if (window.__PRELIQUIFY__.hydrate && document.body) {
+          window.__PRELIQUIFY__.hydrate();
         }
         return;
       }
@@ -779,6 +862,14 @@ const componentName = Snippet.__preliquifyComponentName || '${componentName}';
               jsx: "automatic",
               jsxImportSource: opts.jsxImportSource || "preact",
               globalName: `__PreliquifyBundle_${componentName}`,
+              // Enable CSS loader if Tailwind is enabled
+              ...(tailwindEnabled
+                ? {
+                  loader: {
+                    ".css": "css",
+                  },
+                }
+                : {}),
             });
 
             bundleCount++;
@@ -888,5 +979,5 @@ async function startWatchMode(
     process.exit(0);
   });
 
-  await new Promise(() => {});
+  await new Promise(() => { });
 }

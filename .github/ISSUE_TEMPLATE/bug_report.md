@@ -1,9 +1,9 @@
 ---
 name: Bug Report
 about: Create a report to help us improve
-title: '[BUG] '
+title: "[BUG] "
 labels: bug
-assignees: ''
+assignees: ""
 ---
 
 ## Description
@@ -12,9 +12,9 @@ assignees: ''
 
 ## Steps to Reproduce
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ## Expected Behavior
 
@@ -42,11 +42,11 @@ Error message here
 
 ## Environment
 
-- **Preliquify Version**: 
-- **Node.js Version**: 
-- **pnpm Version**: 
-- **Operating System**: 
-- **Package Manager**: 
+- **Preliquify Version**:
+- **Node.js Version**:
+- **pnpm Version**:
+- **Operating System**:
+- **Package Manager**:
 
 ## Additional Context
 
@@ -55,4 +55,3 @@ Error message here
 ## Possible Solution
 
 <!-- Optional: Suggest a fix or reason for the bug -->
-

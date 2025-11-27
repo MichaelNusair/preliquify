@@ -1,5 +1,4 @@
 /** @jsxImportSource preact */
-import { h } from "preact";
 import { $, Conditional } from "@preliquify/preact";
 
 export default function IfExample() {

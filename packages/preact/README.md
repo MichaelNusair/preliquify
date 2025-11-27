@@ -17,8 +17,7 @@ yarn add @preliquify/preact
 ## Usage
 
 ```tsx
-import { For, Conditional, Target, $ } from '@preliquify/preact';
+import { For, Conditional, Target, $ } from "@preliquify/preact";
 ```
 
 For complete documentation, examples, and guides, please see the [main repository](https://github.com/MichaelNusair/preliquify).
-

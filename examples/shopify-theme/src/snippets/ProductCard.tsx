@@ -1,5 +1,4 @@
 /** @jsxImportSource preact */
-import { h } from "preact";
 import { useTarget, rawLiquid } from "@preliquify/preact";
 
 interface ProductCardProps {

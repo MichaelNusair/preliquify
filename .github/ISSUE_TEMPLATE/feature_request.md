@@ -1,9 +1,9 @@
 ---
 name: Feature Request
 about: Suggest an idea for this project
-title: '[FEATURE] '
+title: "[FEATURE] "
 labels: enhancement
-assignees: ''
+assignees: ""
 ---
 
 ## Feature Description
@@ -37,4 +37,3 @@ assignees: ''
 ## Implementation Ideas
 
 <!-- Optional: If you have ideas about how this could be implemented -->
-

@@ -101,10 +101,10 @@ async function loadConfig(customConfigPath?: string): Promise<any> {
   const possibleConfigs = customConfigPath
     ? [resolve(cwd, customConfigPath)]
     : [
-        resolve(cwd, "preliquify.config.ts"),
-        resolve(cwd, "preliquify.config.js"),
-        resolve(cwd, "preliquify.config.mjs"),
-      ];
+      resolve(cwd, "preliquify.config.ts"),
+      resolve(cwd, "preliquify.config.js"),
+      resolve(cwd, "preliquify.config.mjs"),
+    ];
 
   const tmpDir = await mkdtemp(join(tmpdir(), "preliquify-config-"));
 
@@ -150,7 +150,7 @@ async function loadConfig(customConfigPath?: string): Promise<any> {
   } finally {
     try {
       await fs.rm(tmpDir, { recursive: true, force: true });
-    } catch {}
+    } catch { }
   }
 }
 
@@ -169,6 +169,7 @@ const buildOptions = {
     cfg.suffixDistFiles !== undefined ? cfg.suffixDistFiles : true,
   generateClientBundles: cfg.generateClientBundles !== false, // Default true
   minify: cfg.minify !== false, // Default true
+  tailwind: cfg.tailwind,
 };
 
 console.log("\n🚀 Starting PreLiquify build...\n");

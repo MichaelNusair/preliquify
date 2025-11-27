@@ -1,9 +1,3 @@
-interface PreliquifyIsland {
-  id: string;
-  component: string;
-  props: Record<string, any>;
-}
-
 interface PreliquifyRuntime {
   components: Map<string, any>;
   mounted: Map<string, any>;
@@ -13,8 +7,11 @@ interface PreliquifyRuntime {
 
 declare global {
   interface Window {
-    Preliquify: Record<string, any>;
+    __PRELIQUIFY__: {
+      [key: string]: any;
+    };
     __preliquifyRuntime: PreliquifyRuntime;
+    __PRELIQUIFY_DEBUG__: boolean;
   }
 }
 
@@ -23,9 +20,9 @@ function safeHydrate(
   Component: any,
   props: any,
   runtime: PreliquifyRuntime
-): void {
+): boolean {
   try {
-    const preact = (window as any).preact;
+    const preact = window.preact;
     if (!preact) {
       throw new Error(
         "Preact not found. Make sure preact is bundled or loaded before hydration."
@@ -39,6 +36,8 @@ function safeHydrate(
     if (id) {
       runtime.mounted.set(id, { element, Component, props });
     }
+
+    return true;
   } catch (error) {
     runtime.errors.push(error as Error);
 
@@ -57,7 +56,16 @@ function safeHydrate(
         bubbles: true,
       })
     );
+
+    return false;
   }
+}
+
+function decodeHtmlEntities(text: string): string {
+  // Create a temporary element to decode HTML entities
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = text;
+  return textarea.value;
 }
 
 function parseProps(element: Element): Record<string, any> {
@@ -65,7 +73,7 @@ function parseProps(element: Element): Record<string, any> {
   const scriptTag = element.querySelector("script[data-preliq-props]");
   if (scriptTag) {
     try {
-      const content = scriptTag.textContent || "";
+      let content = scriptTag.textContent || "";
       const trimmed = content.trim();
       if (trimmed) {
         // Check if content still has Liquid tags (means Liquid wasn't processed)
@@ -76,7 +84,11 @@ function parseProps(element: Element): Record<string, any> {
           );
           return {};
         }
-        return JSON.parse(trimmed);
+        // Decode HTML entities (e.g., &quot; -> ")
+        // If textContent already decoded it, this is a no-op
+        // If innerHTML was used, this will decode entities
+        const decoded = decodeHtmlEntities(trimmed);
+        return JSON.parse(decoded);
       }
     } catch (error) {
       console.warn("[Preliquify] Failed to parse props from script:", error);
@@ -84,6 +96,14 @@ function parseProps(element: Element): Record<string, any> {
         "[Preliquify] Script content:",
         scriptTag.textContent?.substring(0, 200)
       );
+      // Try decoding HTML entities as fallback
+      try {
+        const content = scriptTag.textContent || "";
+        const decoded = decodeHtmlEntities(content.trim());
+        return JSON.parse(decoded);
+      } catch (decodeError) {
+        // If decoding also fails, return empty props
+      }
     }
   }
 
@@ -92,7 +112,9 @@ function parseProps(element: Element): Record<string, any> {
   if (!propsAttr) return {};
 
   try {
-    return JSON.parse(propsAttr);
+    // Decode HTML entities from attribute as well
+    const decoded = decodeHtmlEntities(propsAttr);
+    return JSON.parse(decoded);
   } catch (error) {
     console.warn("[Preliquify] Failed to parse props:", propsAttr, error);
     return {};
@@ -172,7 +194,7 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
 
   const Component =
     runtime.components.get(componentName) ||
-    (window as any).__PRELIQUIFY__?.[componentName];
+    window.__PRELIQUIFY__?.[componentName];
 
   if (!Component) {
     console.warn(`[Preliquify] Component "${componentName}" not found`);
@@ -182,23 +204,26 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
     );
     console.warn(
       `[Preliquify] Available in window.__PRELIQUIFY__:`,
-      Object.keys((window as any).__PRELIQUIFY__ || {})
+      Object.keys(window.__PRELIQUIFY__ || {})
     );
     element.setAttribute("data-preliq-error", "component-not-found");
     return;
   }
 
   const props = parseProps(element);
-  safeHydrate(element, Component, props, runtime);
+  const hydrated = safeHydrate(element, Component, props, runtime);
 
-  element.setAttribute("data-preliq-hydrated", "true");
+  // Only mark as hydrated if render actually succeeded
+  if (hydrated) {
+    element.setAttribute("data-preliq-hydrated", "true");
 
-  element.dispatchEvent(
-    new CustomEvent("preliquify:hydrated", {
-      detail: { id, component: componentName },
-      bubbles: true,
-    })
-  );
+    element.dispatchEvent(
+      new CustomEvent("preliquify:hydrated", {
+        detail: { id, component: componentName },
+        bubbles: true,
+      })
+    );
+  }
 }
 
 function initRuntime(): PreliquifyRuntime {
@@ -210,13 +235,13 @@ function initRuntime(): PreliquifyRuntime {
     components: new Map(),
     mounted: new Map(),
     errors: [],
-    debug: (window as any).__PRELIQUIFY_DEBUG__ || false,
+    debug: window.__PRELIQUIFY_DEBUG__ || false,
   };
 
   window.__preliquifyRuntime = runtime;
 
-  if (!(window as any).__PRELIQUIFY__) {
-    (window as any).__PRELIQUIFY__ = {};
+  if (!window.__PRELIQUIFY__) {
+    window.__PRELIQUIFY__ = {};
   }
 
   return runtime;
@@ -225,19 +250,35 @@ function initRuntime(): PreliquifyRuntime {
 const runtime = initRuntime();
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => hydrateIslands(runtime));
+  document.addEventListener("DOMContentLoaded", () => {
+    if (document.body) {
+      hydrateIslands(runtime);
+    }
+  });
 } else {
-  if ("requestIdleCallback" in window) {
-    (window as any).requestIdleCallback(() => hydrateIslands(runtime));
-  } else {
-    setTimeout(() => hydrateIslands(runtime), 0);
+  if (document.body) {
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(() => hydrateIslands(runtime));
+    } else {
+      setTimeout(() => hydrateIslands(runtime), 0);
+    }
   }
 }
 
-export const Preliquify = {
+// Initialize window.__PRELIQUIFY__ first
+if (!window.__PRELIQUIFY__) {
+  window.__PRELIQUIFY__ = {};
+}
+
+const Preliquify = {
   register(name: string, component: any): void {
     runtime.components.set(name, component);
-    (window as any).__PRELIQUIFY__[name] = component;
+    window.__PRELIQUIFY__[name] = component;
+    // Trigger hydration when component registers (handles defer script timing)
+    // Safe to call multiple times - hydrate() skips already-hydrated islands
+    if (document.body) {
+      hydrateIslands(runtime);
+    }
   },
 
   hydrate(container?: Element): void {
@@ -264,7 +305,7 @@ export const Preliquify = {
     const mounted = runtime.mounted.get(id);
     if (!mounted) return false;
 
-    const preact = (window as any).preact;
+    const preact = window.preact;
     if (preact) {
       preact.render(null, mounted.element);
       runtime.mounted.delete(id);
@@ -285,4 +326,7 @@ export const Preliquify = {
   },
 };
 
-(window as any).__PRELIQUIFY__ = Preliquify;
+// Expose all methods on window.__PRELIQUIFY__
+Object.assign(window.__PRELIQUIFY__, Preliquify);
+
+export { };

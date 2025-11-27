@@ -9,7 +9,12 @@
     "declaration": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "baseUrl": "."
+    "baseUrl": ".",
+    "paths": {
+      "@preliquify/core": ["./packages/core/src"],
+      "@preliquify/compiler": ["./packages/compiler/src"],
+      "@preliquify/preact": ["./packages/preact/src"],
+      "@preliquify/cli": ["./packages/cli/src"]
+    }
   }
 }
-

@@ -1,4 +1,3 @@
-import { h } from "preact";
 import { useTarget } from "../runtime.js";
 import { liquidJson } from "../liquid.js";
 import type { HydrateProps } from "../types.js";

@@ -14,6 +14,7 @@ $ preliquify build
 ```
 
 **Files:**
+
 - `preliquify-prlq.runtime.js` - Shared hydration runtime (~4 KB)
 - `{ComponentName}-prlq.bundle.js` - Component + registration (~1-2 KB each)
 
@@ -33,17 +34,17 @@ Each bundle auto-registers on load:
 
 ```javascript
 // Auto-generated
-(function() {
+(function () {
   function registerComponent() {
     if (window.__PRELIQUIFY__?.register) {
-      window.__PRELIQUIFY__.register('ComponentName', Component);
+      window.__PRELIQUIFY__.register("ComponentName", Component);
       return;
     }
     setTimeout(registerComponent, 10);
   }
-  
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', registerComponent);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", registerComponent);
   } else {
     registerComponent();
   }
@@ -56,8 +57,8 @@ Handles race conditions. Works with `defer`, `async`, or normal script tags.
 
 ```typescript
 export default {
-  generateClientBundles: true,  // Default: true
-  minify: true,                 // Default: true
+  generateClientBundles: true, // Default: true
+  minify: true, // Default: true
 };
 ```
 
@@ -83,11 +84,11 @@ Total: ~10-15 KB for typical page with 3 components.
 
 ```javascript
 // Check runtime loaded
-window.__PRELIQUIFY__
+window.__PRELIQUIFY__;
 
 // Check component registered
-window.__PRELIQUIFY__.getComponent('ComponentName')
+window.__PRELIQUIFY__.getComponent("ComponentName");
 
 // Check errors
-window.__PRELIQUIFY__.getErrors()
+window.__PRELIQUIFY__.getErrors();
 ```
