@@ -6,4 +6,6 @@ declare global {
     preact?: any;
   }
 }
+
+// eslint-disable-next-line no-undef
 window.preact = { h, render };

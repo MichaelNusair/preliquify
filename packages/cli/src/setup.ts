@@ -18,14 +18,6 @@
 import { promises as fs } from "node:fs";
 import { join, dirname } from "node:path";
 
-const SHOPIFY_THEME_DIRS = [
-  "assets",
-  "layout",
-  "sections",
-  "snippets",
-  "templates",
-];
-
 const DEFAULT_CONFIG = `import type { PreliquifyConfig } from "@preliquify/cli";
 
 const config: PreliquifyConfig = {
@@ -374,7 +366,7 @@ export async function setup(options: SetupOptions = {}): Promise<void> {
     }
 
     if (modified) {
-      await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf8");
+      await fs.writeFile(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
       console.log("  ✓ Added preliquify scripts to package.json");
     } else {
       console.log("  ℹ Scripts already exist in package.json");
@@ -384,7 +376,7 @@ export async function setup(options: SetupOptions = {}): Promise<void> {
   }
 
   // Done!
-  console.log("\n" + "─".repeat(50));
+  console.log(`\n${"─".repeat(50)}`);
   console.log("\n✅ Preliquify setup complete!\n");
   console.log("Next steps:");
   console.log("  1. Run: npm run preliquify:build");

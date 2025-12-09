@@ -7,6 +7,15 @@ export default [
   js.configs.recommended,
   {
     files: ["**/*.ts", "**/*.tsx"],
+    ignores: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.vscode/**",
+      "**/coverage/**",
+      "**/*.config.js",
+      "**/**/*.bundle.js",
+      "**/**/*.runtime.js",
+    ],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

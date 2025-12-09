@@ -103,5 +103,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Build all packages
+        run: pnpm build
+
       - name: Type check
         run: pnpm -r --filter '@preliquify/*' exec tsc --noEmit

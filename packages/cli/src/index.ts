@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { build as esbuild } from "esbuild";
 import { setup } from "./setup.js";
+import { PreliquifyConfig } from "./types.js";
 
 const args = process.argv.slice(2);
 const cmd = args[0] || "build";
@@ -125,7 +126,9 @@ if (cmd === "init") {
   // Continue with build command below
 }
 
-async function loadConfig(customConfigPath?: string): Promise<any> {
+async function loadConfig(
+  customConfigPath?: string
+): Promise<PreliquifyConfig | null> {
   const cwd = process.cwd();
   const possibleConfigs = customConfigPath
     ? [resolve(cwd, customConfigPath)]
@@ -144,7 +147,7 @@ async function loadConfig(customConfigPath?: string): Promise<any> {
         let importPath: string;
 
         if (configPath.endsWith(".ts")) {
-          const tmpOut = join(tmpDir, basename(configPath) + ".mjs");
+          const tmpOut = join(tmpDir, `${basename(configPath)}.mjs`);
           await esbuild({
             entryPoints: [configPath],
             bundle: true,
@@ -162,12 +165,21 @@ async function loadConfig(customConfigPath?: string): Promise<any> {
         const cfg = mod.default || mod;
 
         return cfg;
-      } catch (e: any) {
-        if (e.code !== "ENOENT") {
+      } catch (e) {
+        if (
+          !(
+            typeof e === "object" &&
+            e !== null &&
+            "code" in e &&
+            e.code === "ENOENT"
+          )
+        ) {
           if (flags.verbose) {
             console.warn(
               `[preliquify] Error loading config from ${configPath}:`,
-              e.message
+              typeof e === "object" && e !== null && "message" in e
+                ? e.message
+                : String(e)
             );
           }
         }
@@ -179,7 +191,9 @@ async function loadConfig(customConfigPath?: string): Promise<any> {
   } finally {
     try {
       await fs.rm(tmpDir, { recursive: true, force: true });
-    } catch {}
+    } catch {
+      // Ignore error
+    }
   }
 }
 
@@ -229,8 +243,14 @@ if (cmd === "build" || cmd === "") {
 
   try {
     await build(buildOptions);
-  } catch (error: any) {
-    if (flags.verbose && error.stack) {
+  } catch (error) {
+    if (
+      flags.verbose &&
+      typeof error === "object" &&
+      error !== null &&
+      "stack" in error &&
+      error.stack
+    ) {
       console.error("\nFull stack trace:", error.stack);
     }
     process.exit(1);
