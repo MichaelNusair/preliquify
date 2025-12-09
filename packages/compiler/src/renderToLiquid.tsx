@@ -42,5 +42,5 @@ export async function renderComponentToLiquid(
   const html = renderToString(
     h(TargetProvider, { value: "liquid" }, h(Comp, {}))
   );
-  return html.trim() + "\n";
+  return `${html.trim()}\n`;
 }

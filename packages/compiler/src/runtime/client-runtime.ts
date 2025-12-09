@@ -73,7 +73,7 @@ function parseProps(element: Element): Record<string, any> {
   const scriptTag = element.querySelector("script[data-preliq-props]");
   if (scriptTag) {
     try {
-      let content = scriptTag.textContent || "";
+      const content = scriptTag.textContent || "";
       const trimmed = content.trim();
       if (trimmed) {
         // Check if content still has Liquid tags (means Liquid wasn't processed)
@@ -189,7 +189,7 @@ function hydrateIslands(runtime: PreliquifyRuntime): void {
       const Component =
         runtime.components.get(componentName || "") ||
         window.__PRELIQUIFY__?.[componentName || ""];
-      
+
       if (Component) {
         // Component is now available, try to hydrate
         hydrateIsland(island, runtime);
@@ -217,7 +217,9 @@ function hydrateIsland(element: Element, runtime: PreliquifyRuntime): void {
     // Component not found yet - this is expected when scripts load asynchronously
     // Don't set permanent error, just log a warning (only in debug mode to reduce noise)
     if (runtime.debug) {
-      console.warn(`[Preliquify] Component "${componentName}" not found yet (will retry)`);
+      console.warn(
+        `[Preliquify] Component "${componentName}" not found yet (will retry)`
+      );
       console.warn(
         `[Preliquify] Available components:`,
         Array.from(runtime.components.keys())
@@ -315,7 +317,7 @@ const Preliquify = {
       "[data-preliq-island]:not([data-preliq-hydrated])"
     );
     islands.forEach((island) => hydrateIsland(island, runtime));
-    
+
     // Also retry any pending islands in this container
     const pendingIslands = searchRoot.querySelectorAll("[data-preliq-pending]");
     pendingIslands.forEach((island) => {
@@ -323,7 +325,7 @@ const Preliquify = {
       const Component =
         runtime.components.get(componentName || "") ||
         window.__PRELIQUIFY__?.[componentName || ""];
-      
+
       if (Component) {
         hydrateIsland(island, runtime);
       }
@@ -370,4 +372,4 @@ const Preliquify = {
 // Expose all methods on window.__PRELIQUIFY__
 Object.assign(window.__PRELIQUIFY__, Preliquify);
 
-export { };
+export {};
