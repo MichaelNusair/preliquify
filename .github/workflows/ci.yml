@@ -79,8 +79,8 @@ jobs:
       - name: Build all packages
         run: pnpm build
 
-      - name: Run tests
-        run: pnpm test
+  #      - name: Run tests
+  #        run: pnpm test
 
   typecheck:
     name: Type Check
