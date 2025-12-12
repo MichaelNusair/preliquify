@@ -552,7 +552,7 @@ export const $ = {
    * // Equivalent to: $.var("designSettings.desktopSettings.desktopLayoutType")
    * ```
    */
-  prop<T, K extends keyof T>(expr: Expr<T>, property: K): Expr<T[K]> {
+ prop<T, K extends keyof T>(expr: Expr<T>, property: K): Expr<T[K]> {
     return createExpr(
       () => {
         const base = expr.toLiquid();
@@ -572,8 +572,8 @@ export const $ = {
           ) {
             throw new Error(errorMsg);
           }
-          // In production, return a safe fallback
-          return property;
+          // In product pion, return a safe fallback
+          return String(property);
         }
 
         // If base is already a path (no spaces, no parentheses), append property
