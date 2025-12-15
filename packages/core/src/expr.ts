@@ -552,7 +552,7 @@ export const $ = {
    * // Equivalent to: $.var("designSettings.desktopSettings.desktopLayoutType")
    * ```
    */
-  prop<T, K extends keyof T>(expr: Expr<T>, property: string): Expr<T[K]> {
+ prop<T, K extends keyof T>(expr: Expr<T>, property: K): Expr<T[K]> {
     return createExpr(
       () => {
         const base = expr.toLiquid();
@@ -560,7 +560,7 @@ export const $ = {
         // Validate base path - must not be empty or start with a dot
         if (!base || base.startsWith(".")) {
           const errorMsg =
-            `[Preliquify] Cannot access property "${property}" on invalid Liquid path: "${base}". ` +
+            `[Preliquify] Cannot access property "${String(property)}" on invalid Liquid path: "${base}". ` +
             `The base path is empty or starts with a dot, which is invalid in Liquid. ` +
             `\n\nSolution: Use $.from() to provide a valid Liquid path when creating the Expr:\n` +
             `  const settings = $.from("storeMetafield.designSettings", designSettings);\n` +
@@ -572,20 +572,20 @@ export const $ = {
           ) {
             throw new Error(errorMsg);
           }
-          // In production, return a safe fallback
-          return property;
+          // In product pion, return a safe fallback
+          return String(property);
         }
 
         // If base is already a path (no spaces, no parentheses), append property
         if (!base.includes(" ") && !base.includes("(")) {
-          return `${base}.${property}`;
+          return `${base}.${String(property)}`;
         }
 
         // For complex expressions (conditionals, comparisons, etc.), we can't append
         // This is a limitation - you can't do "if condition then path1 else path2".property
         // The user needs to restructure their logic
         const errorMsg =
-          `[Preliquify] Cannot access property "${property}" on complex expression: "${base}". ` +
+          `[Preliquify] Cannot access property "${String(property)}" on complex expression: "${base}". ` +
           `Liquid doesn't support property access on conditional expressions. ` +
           `\n\nSolution: Access the property before the conditional:\n` +
           `  // Instead of: $.prop($.when(condition, path1, path2), "property")\n` +
@@ -598,12 +598,12 @@ export const $ = {
           throw new Error(errorMsg);
         }
         // In production, return a safe fallback
-        return property;
+        return String(property);
       },
       () => (ctx) => {
         const parent = expr.toClient()(ctx);
         if (parent && typeof parent === "object") {
-          return (parent as Record<string, unknown>)[property] as T[K];
+          return (parent as Record<string, unknown>)[String(property)] as T[K];
         }
         return undefined as T[K];
       }
